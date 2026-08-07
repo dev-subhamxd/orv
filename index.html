@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project ORV — Star Stream Access</title>
+<style>
+:root {
+  --ss-cyan-primary: #00f0ff;
+  --ss-cyan-glow: rgba(0, 240, 255, 0.4);
+  --ss-bg-dark: rgba(10, 15, 25, 0.9);
+  --ss-border-cyan: #00a8ff;
+  --ss-gold-accent: #ffd700;
+  --ss-text-light: #e0f7fc;
+  --ss-red-error: #ff4d5e;
+  --ss-green-ok: #37ffab;
+  --ss-font-main: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body.star-stream-theme {
+  background: radial-gradient(circle at 50% 20%, #0c1424 0%, #050811 65%);
+  color: var(--ss-text-light);
+  font-family: var(--ss-font-main);
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+/* faint scanning grid behind everything, like a broadcast feed */
+body.star-stream-theme::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0,240,255,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,240,255,0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.stream-frame {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 420px;
+}
+
+.channel-tag {
+  text-align: center;
+  font-size: 0.75rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--ss-cyan-primary);
+  opacity: 0.75;
+  margin-bottom: 10px;
+}
+
+.system-window {
+  background: var(--ss-bg-dark);
+  border: 1px solid var(--ss-border-cyan);
+  box-shadow: 0 0 25px var(--ss-cyan-glow), inset 0 0 40px rgba(0,240,255,0.03);
+  backdrop-filter: blur(10px);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.window-header {
+  background: linear-gradient(90deg, rgba(0,240,255,0.2), transparent);
+  color: var(--ss-cyan-primary);
+  padding: 10px 16px;
+  font-weight: bold;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  border-bottom: 1px solid var(--ss-border-cyan);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.window-header .dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--ss-green-ok);
+  box-shadow: 0 0 6px var(--ss-green-ok);
+  display: inline-block;
+}
+
+.panel-body { padding: 22px 20px 24px; }
+
+.system-title {
+  font-size: 1.15rem;
+  color: var(--ss-text-light);
+  margin: 0 0 4px;
+}
+.system-sub {
+  font-size: 0.8rem;
+  color: rgba(224,247,252,0.6);
+  margin: 0 0 20px;
+  line-height: 1.4;
+}
+
+.tab-row {
+  display: flex;
+  border: 1px solid var(--ss-border-cyan);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+.tab-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: rgba(224,247,252,0.55);
+  padding: 9px 0;
+  font-family: inherit;
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+.tab-btn.active {
+  background: rgba(0,240,255,0.14);
+  color: var(--ss-cyan-primary);
+}
+
+.field { margin-bottom: 14px; }
+.field label {
+  display: block;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(224,247,252,0.55);
+  margin-bottom: 6px;
+}
+.field input {
+  width: 100%;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(0,168,255,0.4);
+  color: var(--ss-text-light);
+  padding: 10px 12px;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.field input:focus {
+  border-color: var(--ss-cyan-primary);
+  box-shadow: 0 0 8px rgba(0,240,255,0.35);
+}
+
+.pw-wrap {
+  position: relative;
+}
+.pw-wrap input {
+  padding-right: 40px;
+}
+.pw-toggle {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: rgba(224,247,252,0.5);
+  cursor: pointer;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  transition: color 0.15s;
+}
+.pw-toggle:hover { color: var(--ss-cyan-primary); }
+.pw-toggle svg { width: 18px; height: 18px; display: block; }
+
+.primary-btn {
+  width: 100%;
+  background: linear-gradient(90deg, rgba(0,240,255,0.9), rgba(0,168,255,0.9));
+  color: #001217;
+  border: none;
+  padding: 12px 0;
+  border-radius: 4px;
+  font-family: inherit;
+  font-weight: bold;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  margin-top: 6px;
+  transition: filter 0.15s, transform 0.1s;
+}
+.primary-btn:hover:not(:disabled) { filter: brightness(1.1); }
+.primary-btn:active:not(:disabled) { transform: scale(0.98); }
+.primary-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.status-line {
+  margin-top: 14px;
+  font-size: 0.8rem;
+  padding: 10px 12px;
+  border-radius: 4px;
+  border-left: 3px solid transparent;
+  line-height: 1.4;
+  display: none;
+}
+.status-line.show { display: block; }
+.status-line.error {
+  color: var(--ss-red-error);
+  background: rgba(255,77,94,0.08);
+  border-left-color: var(--ss-red-error);
+}
+.status-line.ok {
+  color: var(--ss-green-ok);
+  background: rgba(55,255,171,0.08);
+  border-left-color: var(--ss-green-ok);
+}
+.status-line.info {
+  color: var(--ss-gold-accent);
+  background: rgba(255,215,0,0.08);
+  border-left-color: var(--ss-gold-accent);
+}
+
+.device-note {
+  margin-top: 16px;
+  font-size: 0.7rem;
+  color: rgba(224,247,252,0.4);
+  line-height: 1.5;
+  border-top: 1px dashed rgba(0,168,255,0.25);
+  padding-top: 12px;
+}
+
+.hidden { display: none !important; }
+
+/* ---------- Game Shell ---------- */
+#game-root { width: 100%; max-width: 480px; }
+
+.game-hud {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  margin-bottom: 10px;
+  background: var(--ss-bg-dark);
+  border: 1px solid var(--ss-border-cyan);
+  border-radius: 6px;
+  box-shadow: 0 0 15px var(--ss-cyan-glow);
+}
+.game-hud .hud-user { font-size: 0.8rem; color: var(--ss-text-light); }
+.game-hud .hud-user span { color: var(--ss-cyan-primary); font-weight: bold; }
+.game-hud .hud-coins { font-size: 0.9rem; color: var(--ss-gold-accent); font-weight: bold; }
+.game-hud .hud-logout {
+  background: transparent;
+  border: 1px solid var(--ss-red-error);
+  color: var(--ss-red-error);
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.game-window { margin-bottom: 10px; }
+.scrollable-log {
+  flex-grow: 1;
+  padding: 12px 14px;
+  max-height: 220px;
+  overflow-y: auto;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+.scrollable-log p { margin: 0 0 8px; color: rgba(224,247,252,0.85); }
+.scrollable-log p.obj { color: var(--ss-gold-accent); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; }
+
+.constellation-msg {
+  color: var(--ss-gold-accent);
+  background: rgba(255, 215, 0, 0.05);
+  border-left: 3px solid var(--ss-gold-accent);
+  padding: 6px 10px;
+  margin-bottom: 8px;
+  font-size: 0.8rem;
+  border-radius: 2px;
+  animation: fadeIn 0.3s ease-in-out;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.choice-container {
+  padding: 0 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.choice-btn {
+  background: rgba(0,240,255,0.08);
+  border: 1px solid var(--ss-border-cyan);
+  color: var(--ss-text-light);
+  padding: 11px 12px;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.choice-btn:hover { background: rgba(0,240,255,0.18); border-color: var(--ss-cyan-primary); }
+.choice-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.stat-list { padding: 12px 14px 14px; }
+.stat-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 0;
+  border-bottom: 1px solid rgba(0,168,255,0.15);
+  font-size: 0.82rem;
+}
+.stat-row:last-child { border-bottom: none; }
+.stat-row .stat-name { color: rgba(224,247,252,0.7); }
+.stat-row .stat-val { color: var(--ss-cyan-primary); font-weight: bold; margin: 0 10px; }
+.stat-row .stat-cost { font-size: 0.65rem; color: rgba(255,215,0,0.7); margin-right: 8px; }
+.stat-up-btn {
+  background: rgba(0,240,255,0.15);
+  border: 1px solid var(--ss-cyan-primary);
+  color: var(--ss-cyan-primary);
+  width: 26px; height: 26px;
+  border-radius: 4px;
+  font-family: inherit;
+  font-weight: bold;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.stat-up-btn:hover:not(:disabled) { background: rgba(0,240,255,0.3); }
+.stat-up-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.scenario-status {
+  padding: 8px 14px;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ss-green-ok);
+  border-top: 1px dashed rgba(0,168,255,0.2);
+}
+</style>
+</head>
+<body class="star-stream-theme">
+
+<div class="stream-frame">
+  <div class="channel-tag">Star Stream // Access Terminal</div>
+
+  <!-- AUTH CARD -->
+  <div id="auth-card" class="system-window">
+    <div class="window-header">
+      <span>System Notification</span>
+      <span class="dot"></span>
+    </div>
+    <div class="panel-body">
+      <h1 class="system-title">Incarnation Registration</h1>
+      <p class="system-sub">Every mortal is permitted one contract with the Star Stream. Register your identity to begin receiving Scenarios.</p>
+
+      <div class="tab-row">
+        <button class="tab-btn active" id="tab-signin">Sign In</button>
+        <button class="tab-btn" id="tab-signup">Sign Up</button>
+      </div>
+
+      <!-- SIGN IN FORM -->
+      <form id="signin-form">
+        <div class="field">
+          <label for="si-email">Email</label>
+          <input id="si-email" type="email" autocomplete="email" required>
+        </div>
+        <div class="field">
+          <label for="si-password">Password</label>
+          <div class="pw-wrap">
+            <input id="si-password" type="password" autocomplete="current-password" required>
+            <button type="button" class="pw-toggle" data-target="si-password" aria-label="Show password">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+        </div>
+        <button type="submit" class="primary-btn" id="si-submit">Enter the Stream</button>
+      </form>
+
+      <!-- SIGN UP FORM -->
+      <form id="signup-form" class="hidden">
+        <div class="field">
+          <label for="su-username">Incarnation Name</label>
+          <input id="su-username" type="text" autocomplete="nickname" required minlength="3" maxlength="24">
+        </div>
+        <div class="field">
+          <label for="su-email">Email</label>
+          <input id="su-email" type="email" autocomplete="email" required>
+        </div>
+        <div class="field">
+          <label for="su-password">Password</label>
+          <div class="pw-wrap">
+            <input id="su-password" type="password" autocomplete="new-password" required minlength="8">
+            <button type="button" class="pw-toggle" data-target="su-password" aria-label="Show password">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+        </div>
+        <button type="submit" class="primary-btn" id="su-submit">Sign the Contract</button>
+      </form>
+
+      <div id="status-line" class="status-line"></div>
+
+      <div class="device-note">
+        One contract per browser, per email. Registering here binds your Incarnation to this device — see note below for what that actually means.
+      </div>
+    </div>
+  </div>
+
+  <!-- GAME ROOT (shown after sign in) -->
+  <div id="game-root" class="hidden">
+    <div class="game-hud">
+      <div class="hud-user">Incarnation: <span id="hud-username">—</span></div>
+      <div class="hud-coins" id="hud-coins">0 🪙</div>
+      <button class="hud-logout" id="logout-btn">Sever</button>
+    </div>
+
+    <div class="system-window game-window">
+      <div class="window-header">
+        <span id="narrative-title">System Notification</span>
+        <span class="dot"></span>
+      </div>
+      <div id="story-log" class="scrollable-log"></div>
+      <div id="choice-container" class="choice-container"></div>
+      <div id="scenario-status" class="scenario-status hidden"></div>
+    </div>
+
+    <div class="system-window game-window">
+      <div class="window-header"><span>Attributes Window</span></div>
+      <div id="stat-list" class="stat-list"></div>
+    </div>
+
+    <div class="system-window game-window">
+      <div class="window-header"><span>Constellation Stream Log</span></div>
+      <div id="constellation-messages" class="scrollable-log"></div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+/* =========================================================================
+   PROJECT ORV — AUTH + DATABASE BOOTSTRAP
+   =========================================================================
+   Talks directly to your Firebase Realtime Database via its REST interface
+   (the "<url>/<path>.json" pattern). No Firebase SDK needed for this part.
+
+   ⚠️ READ THIS BEFORE YOU SHIP IT ANYWHERE PUBLIC:
+   This page calls your database straight from the browser with no auth
+   token, because the URL you gave me has no API key attached. That only
+   works if your Firebase Security Rules currently allow public read/write
+   on the ORV node. That also means, as-is, ANYONE can open dev tools,
+   read this same URL, and pull every registered email + password hash out
+   of your database — this isn't a "someday" risk, it's true the moment
+   you deploy this. Two things I'd strongly push you toward before this
+   goes near real users:
+     1. Set rules so /ORV/Users is NOT publicly readable
+        (e.g. Firebase Auth + rules keyed to request.auth.uid).
+     2. Move password checking server-side, or better, swap this hand-rolled
+        auth for actual Firebase Authentication (email/password provider).
+        It's built for exactly this and handles hashing, sessions, and
+        rate-limiting for you.
+   I built it this way because that's what the URL you gave me supports —
+   happy to wire up real Firebase Auth instead if you want to go that route.
+   ========================================================================= */
+
+const DB_ROOT = "https://star-community-orv-dokaebi-default-rtdb.asia-southeast1.firebasedatabase.app/ORV";
+
+/* ---------- one-time DB scaffolding ----------
+   Target shape:
+     Users/{userId}      -> { Account, Player, Progress }
+     Lore/Codex/{id}      -> lore/codex entries
+     Lore/Items/{id}       -> item catalog
+     Lore/Weapons/{id}      -> weapon catalog
+     Lore/StoryFragments/{id} -> Fable/story accumulation entries
+     Characters/Constellations|Dokkaebi|Incarnations/{id}
+     Scenarios/{id}
+
+   Devices/Items/Story/Weapons used to live at the top level; they're
+   folded in now (device data lives inside each user's Account, the
+   rest live under Lore), so this also deletes those old top-level
+   nodes the first time it runs. */
+async function ensureSchema() {
+  const legacyNodes = ["Devices", "Items", "Story", "Weapons", "Lores"];
+  for (const node of legacyNodes) {
+    const existing = await dbGet(node);
+    if (existing !== null) {
+      await dbDelete(node);
+    }
+  }
+
+  const touch = async (path) => {
+    const existing = await dbGet(path);
+    if (existing === null) {
+      await dbPut(`${path}/_meta`, { initialized: true, ts: Date.now() });
+    }
+  };
+
+  await touch("Users");
+  await touch("Lore/Codex");
+  await touch("Lore/Items");
+  await touch("Lore/Weapons");
+  await touch("Lore/StoryFragments");
+  await touch("Characters/Constellations");
+  await touch("Characters/Dokkaebi");
+  await touch("Characters/Incarnations");
+  await touch("Scenarios");
+}
+
+/* ---------- thin REST helpers ---------- */
+async function dbGet(path) {
+  const res = await fetch(`${DB_ROOT}/${path}.json`);
+  if (!res.ok) throw new Error(`DB read failed (${res.status})`);
+  return res.json();
+}
+async function dbPut(path, value) {
+  const res = await fetch(`${DB_ROOT}/${path}.json`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(value)
+  });
+  if (!res.ok) throw new Error(`DB write failed (${res.status})`);
+  return res.json();
+}
+async function dbDelete(path) {
+  const res = await fetch(`${DB_ROOT}/${path}.json`, { method: "DELETE" });
+  if (!res.ok) throw new Error(`DB delete failed (${res.status})`);
+  return res.json();
+}
+async function dbQueryByField(node, field, value) {
+  const url = `${DB_ROOT}/${node}.json?orderBy=${encodeURIComponent(`"${field}"`)}&equalTo=${encodeURIComponent(`"${value}"`)}`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    // Most common cause: missing ".indexOn" rule for this field.
+    throw new Error(`Lookup failed (${res.status}). Did you add ".indexOn": ["${field}"] under ${node} in your Firebase rules?`);
+  }
+  return res.json();
+}
+
+/* Firebase can hand back {} instead of null for a zero-match filtered
+   query, and {} is truthy in JS — so never trust raw truthiness of a
+   query result. These walk the result and confirm a real record
+   actually matches before treating it as a hit. Both query against
+   Users directly now (nested under Account) since there's no separate
+   Devices node anymore. */
+async function findUserByEmail(email) {
+  const matches = await dbQueryByField("Users", "Account/email", email);
+  if (!matches || typeof matches !== "object") return null;
+  for (const [id, record] of Object.entries(matches)) {
+    if (record && record.Account && record.Account.email === email && record.Account.passwordHash) {
+      return { id, user: record };
+    }
+  }
+  return null;
+}
+async function findUserByDeviceOrFingerprint(deviceId, fingerprint) {
+  const [byDevice, byFingerprint] = await Promise.all([
+    dbQueryByField("Users", "Account/deviceId", deviceId),
+    dbQueryByField("Users", "Account/fingerprint", fingerprint)
+  ]);
+  const check = (matches, field, value) => {
+    if (!matches || typeof matches !== "object") return false;
+    return Object.values(matches).some(r => r && r.Account && r.Account[field] === value);
+  };
+  return check(byDevice, "deviceId", deviceId) || check(byFingerprint, "fingerprint", fingerprint);
+}
+
+/* ---------- crypto helpers ----------
+   SHA-256 hashing so raw passwords never sit in the database. This is
+   still not a substitute for real server-side auth (see warning above). */
+async function sha256(text) {
+  const data = new TextEncoder().encode(text);
+  const hashBuf = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+/* ---------- device fingerprint ----------
+   Two layers, both bypassable by a determined user (any client-side check
+   is), but enough to stop casual multi-accounting:
+   1. A random ID stored in localStorage — fast, wiped by clearing storage.
+   2. A hash of stable browser/GPU characteristics — survives storage
+      clears, but changes if the user switches browser or updates drivers. */
+function getStoredDeviceId() {
+  let id = localStorage.getItem("orv_device_id");
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem("orv_device_id", id);
+  }
+  return id;
+}
+async function getFingerprint() {
+  let gpu = "unknown-gpu";
+  try {
+    const canvas = document.createElement("canvas");
+    const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+    if (gl) {
+      const dbgInfo = gl.getExtension("WEBGL_debug_renderer_info");
+      if (dbgInfo) gpu = gl.getParameter(dbgInfo.UNMASKED_RENDERER_WEBGL);
+    }
+  } catch (e) { /* ignore */ }
+  const raw = [
+    navigator.userAgent,
+    navigator.language,
+    screen.width + "x" + screen.height,
+    screen.colorDepth,
+    Intl.DateTimeFormat().resolvedOptions().timeZone,
+    gpu
+  ].join("||");
+  return sha256(raw);
+}
+
+/* ---------- UI wiring ---------- */
+const els = {
+  tabSignin: document.getElementById("tab-signin"),
+  tabSignup: document.getElementById("tab-signup"),
+  signinForm: document.getElementById("signin-form"),
+  signupForm: document.getElementById("signup-form"),
+  status: document.getElementById("status-line"),
+  authCard: document.getElementById("auth-card"),
+  gameRoot: document.getElementById("game-root"),
+  hudUsername: document.getElementById("hud-username"),
+  hudCoins: document.getElementById("hud-coins"),
+  logoutBtn: document.getElementById("logout-btn"),
+  siSubmit: document.getElementById("si-submit"),
+  suSubmit: document.getElementById("su-submit"),
+  storyLog: document.getElementById("story-log"),
+  choiceContainer: document.getElementById("choice-container"),
+  scenarioStatus: document.getElementById("scenario-status"),
+  statList: document.getElementById("stat-list"),
+  constellationMessages: document.getElementById("constellation-messages"),
+};
+
+function showStatus(kind, msg) {
+  els.status.className = `status-line show ${kind}`;
+  els.status.textContent = msg;
+}
+function clearStatus() {
+  els.status.className = "status-line";
+  els.status.textContent = "";
+}
+
+els.tabSignin.addEventListener("click", () => {
+  els.tabSignin.classList.add("active");
+  els.tabSignup.classList.remove("active");
+  els.signinForm.classList.remove("hidden");
+  els.signupForm.classList.add("hidden");
+  clearStatus();
+});
+els.tabSignup.addEventListener("click", () => {
+  els.tabSignup.classList.add("active");
+  els.tabSignin.classList.remove("active");
+  els.signupForm.classList.remove("hidden");
+  els.signinForm.classList.add("hidden");
+  clearStatus();
+});
+
+/* ---------- password show/hide ---------- */
+const EYE_OPEN = `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/>`;
+const EYE_CLOSED = `<path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.4 21.4 0 0 1 5.06-6.06M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a21.4 21.4 0 0 1-2.16 3.19M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>`;
+
+document.querySelectorAll(".pw-toggle").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const input = document.getElementById(btn.dataset.target);
+    const isHidden = input.type === "password";
+    input.type = isHidden ? "text" : "password";
+    btn.querySelector("svg").innerHTML = isHidden ? EYE_CLOSED : EYE_OPEN;
+    btn.setAttribute("aria-label", isHidden ? "Hide password" : "Show password");
+  });
+});
+
+/* =========================================================================
+   GAME ENGINE — Scenario 1 ("Proof of Value") playable slice
+   =========================================================================
+   Loads the logged-in user's Player/Progress data, renders the HUD +
+   attribute window, and runs one real scenario end to end: choices affect
+   outcome, coins are earned and spent, and every change is written back
+   to Users/{userId}/Player and Users/{userId}/Progress in Firebase. */
+const STAT_LABELS = { physique: "Physique", strength: "Strength", agility: "Agility", magic: "Magic Power" };
+let CurrentUserId = null;
+let CurrentPlayer = null;
+let CurrentProgress = null;
+
+function statCost(stat, level) {
+  return Math.pow(level, 2) * (stat === "magic" ? 120 : 100);
+}
+
+function renderHud() {
+  els.hudCoins.textContent = `${CurrentPlayer.coins} 🪙`;
+}
+
+function renderStats() {
+  els.statList.innerHTML = "";
+  for (const stat of Object.keys(STAT_LABELS)) {
+    const level = CurrentPlayer.stats[stat];
+    const cost = statCost(stat, level);
+    const row = document.createElement("div");
+    row.className = "stat-row";
+    row.innerHTML = `
+      <span class="stat-name">${STAT_LABELS[stat]}</span>
+      <span class="stat-val">Lv. ${level}</span>
+      <span class="stat-cost">${cost} 🪙</span>
+      <button class="stat-up-btn" data-stat="${stat}" ${CurrentPlayer.coins < cost ? "disabled" : ""}>+</button>
+    `;
+    els.statList.appendChild(row);
+  }
+  els.statList.querySelectorAll(".stat-up-btn").forEach(btn => {
+    btn.addEventListener("click", () => upgradeStat(btn.dataset.stat));
+  });
+}
+
+async function upgradeStat(stat) {
+  const level = CurrentPlayer.stats[stat];
+  const cost = statCost(stat, level);
+  if (CurrentPlayer.coins < cost) return;
+
+  CurrentPlayer.coins -= cost;
+  CurrentPlayer.stats[stat] = level + 1;
+  renderHud();
+  renderStats();
+  logSystemMessage(`[Stat Upgraded] ${STAT_LABELS[stat].toUpperCase()} reached Level ${CurrentPlayer.stats[stat]}.`);
+
+  try {
+    await dbPut(`Users/${CurrentUserId}/Player/coins`, CurrentPlayer.coins);
+    await dbPut(`Users/${CurrentUserId}/Player/stats/${stat}`, CurrentPlayer.stats[stat]);
+  } catch (err) {
+    console.warn("Failed to save stat upgrade:", err.message);
+  }
+}
+
+function logSystemMessage(text, isObjective = false) {
+  const p = document.createElement("p");
+  if (isObjective) p.className = "obj";
+  p.textContent = text;
+  els.storyLog.appendChild(p);
+  els.storyLog.scrollTop = els.storyLog.scrollHeight;
+}
+
+async function addConstellationMessage(name, message, donation = 0) {
+  const node = document.createElement("div");
+  node.className = "constellation-msg";
+  node.innerHTML = `[The constellation '<strong>${name}</strong>' ${message}]`;
+  els.constellationMessages.appendChild(node);
+  els.constellationMessages.scrollTop = els.constellationMessages.scrollHeight;
+
+  if (donation > 0) {
+    CurrentPlayer.coins += donation;
+    renderHud();
+    renderStats();
+    logSystemMessage(`[🪙 Received ${donation} coins from '${name}'.]`);
+    try { await dbPut(`Users/${CurrentUserId}/Player/coins`, CurrentPlayer.coins); }
+    catch (err) { console.warn("Failed to save donation:", err.message); }
+  }
+}
+
+function presentChoices(choices) {
+  els.choiceContainer.innerHTML = "";
+  choices.forEach(choice => {
+    const btn = document.createElement("button");
+    btn.className = "choice-btn";
+    btn.textContent = choice.label;
+    btn.addEventListener("click", () => {
+      els.choiceContainer.querySelectorAll(".choice-btn").forEach(b => b.disabled = true);
+      choice.onSelect();
+    });
+    els.choiceContainer.appendChild(btn);
+  });
+}
+
+async function markScenarioCleared(scenarioId, rewardCoins) {
+  if (!CurrentProgress.scenariosCleared.includes(scenarioId)) {
+    CurrentProgress.scenariosCleared.push(scenarioId);
+  }
+  CurrentProgress.currentScenario = null;
+  CurrentPlayer.coins += rewardCoins;
+  renderHud();
+  renderStats();
+  try {
+    await dbPut(`Users/${CurrentUserId}/Progress/scenariosCleared`, CurrentProgress.scenariosCleared);
+    await dbPut(`Users/${CurrentUserId}/Progress/currentScenario`, null);
+    await dbPut(`Users/${CurrentUserId}/Player/coins`, CurrentPlayer.coins);
+  } catch (err) {
+    console.warn("Failed to save scenario progress:", err.message);
+  }
+}
+
+function loadScenario1() {
+  const scenarioId = "main_scenario_1";
+  els.storyLog.innerHTML = "";
+  els.scenarioStatus.classList.add("hidden");
+
+  if (CurrentProgress.scenariosCleared.includes(scenarioId)) {
+    logSystemMessage("<Main Scenario #1 — Proof of Value>");
+    logSystemMessage("You have already proven your worth to the Star Stream.", true);
+    els.scenarioStatus.textContent = "✓ Scenario Cleared";
+    els.scenarioStatus.classList.remove("hidden");
+    els.choiceContainer.innerHTML = "";
+    return;
+  }
+
+  logSystemMessage("<Main Scenario #1 — Proof of Value> Has Begun!");
+  logSystemMessage("Condition: Kill one or more living organisms.", true);
+  logSystemMessage("A wounded street dog blocks the alley ahead, snarling. Time limit: 30 minutes.");
+
+  setTimeout(() => {
+    addConstellationMessage("Abyssal Black Flame Dragon", "is watching you with bloodthirsty interest.", 100);
+  }, 1500);
+
+  presentChoices([
+    {
+      label: "Attack the creature",
+      onSelect: async () => {
+        logSystemMessage("You strike first. The scenario condition is fulfilled.");
+        await addConstellationMessage("Sacrifice's Will", "nods in approval at your resolve.", 0);
+        logSystemMessage("[Scenario Cleared] Proof of Value complete. Reward: 300 Coins.");
+        await markScenarioCleared(scenarioId, 300);
+        els.scenarioStatus.textContent = "✓ Scenario Cleared — 300 🪙 earned";
+        els.scenarioStatus.classList.remove("hidden");
+      }
+    },
+    {
+      label: "Try to back away",
+      onSelect: () => {
+        logSystemMessage("[System Warning] The Star Stream does not reward hesitation. The creature closes the distance — you have no choice but to act.");
+        setTimeout(() => loadScenario1(), 1400);
+      }
+    }
+  ]);
+}
+
+async function enterGame(userId, userRecord) {
+  CurrentUserId = userId;
+  CurrentPlayer = userRecord.Player || { coins: 0, stats: { physique: 1, strength: 1, agility: 1, magic: 1 } };
+  CurrentProgress = userRecord.Progress || { loresCompleted: [], scenariosCleared: [], currentScenario: null };
+
+  els.authCard.classList.add("hidden");
+  els.gameRoot.classList.remove("hidden");
+  els.hudUsername.textContent = userRecord.Account.username;
+
+  renderHud();
+  renderStats();
+  els.constellationMessages.innerHTML = "";
+  loadScenario1();
+}
+
+/* ---------- sign up ---------- */
+els.signupForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  clearStatus();
+  els.suSubmit.disabled = true;
+
+  const username = document.getElementById("su-username").value.trim();
+  const email = document.getElementById("su-email").value.trim().toLowerCase();
+  const password = document.getElementById("su-password").value;
+
+  try {
+    // 1. Fast local pre-check: has THIS browser already registered an account?
+    if (localStorage.getItem("orv_account_registered") === "true") {
+      showStatus("error", "This browser already has a registered Incarnation. One contract per device.");
+      return;
+    }
+
+    // 2. Server-side device check (survives a cleared localStorage flag).
+    //    Queries Users directly by Account/deviceId + Account/fingerprint.
+    const deviceId = getStoredDeviceId();
+    const fingerprint = await getFingerprint();
+    const deviceTaken = await findUserByDeviceOrFingerprint(deviceId, fingerprint);
+    if (deviceTaken) {
+      showStatus("error", "This device is already bound to an existing Incarnation.");
+      localStorage.setItem("orv_account_registered", "true"); // resync local flag
+      return;
+    }
+
+    // 3. Email uniqueness check.
+    const existing = await findUserByEmail(email);
+    if (existing) {
+      showStatus("error", "That email already has a contract with the Star Stream.");
+      return;
+    }
+
+    // 4. Create the account: one record under Users/{userId}, split into
+    //    Account (identity/auth), Player (stats/gear/social), and
+    //    Progress (scenario + lore completion).
+    const userId = crypto.randomUUID();
+    const passwordHash = await sha256(password);
+    const now = Date.now();
+
+    const newUser = {
+      Account: {
+        username,
+        email,
+        passwordHash,
+        deviceId,
+        fingerprint,
+        createdAt: now
+      },
+      Player: {
+        coins: 0,
+        stats: { physique: 1, strength: 1, agility: 1, magic: 1 },
+        weapons: [],
+        equipment: [],
+        inventory: [],
+        skills: [],
+        stigmas: [],
+        relationships: {}
+      },
+      Progress: {
+        loresCompleted: [],
+        scenariosCleared: [],
+        currentScenario: null
+      }
+    };
+
+    await dbPut(`Users/${userId}`, newUser);
+
+    localStorage.setItem("orv_account_registered", "true");
+    localStorage.setItem("orv_session_user", userId);
+
+    showStatus("ok", "Contract signed. Welcome to the Star Stream.");
+    enterGame(userId, newUser);
+  } catch (err) {
+    console.error(err);
+    showStatus("error", err.message || "Registration failed. The Stream rejected the request.");
+  } finally {
+    els.suSubmit.disabled = false;
+  }
+});
+
+/* ---------- sign in ---------- */
+els.signinForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  clearStatus();
+  els.siSubmit.disabled = true;
+
+  const email = document.getElementById("si-email").value.trim().toLowerCase();
+  const password = document.getElementById("si-password").value;
+
+  try {
+    const found = await findUserByEmail(email);
+    if (!found) {
+      showStatus("error", "No Incarnation found under that email. Try signing up first.");
+      return;
+    }
+    const { id: userId, user } = found;
+    const passwordHash = await sha256(password);
+
+    if (passwordHash !== user.Account.passwordHash) {
+      showStatus("error", "Incorrect password.");
+      return;
+    }
+
+    localStorage.setItem("orv_session_user", userId);
+    showStatus("ok", "Channel confirmed.");
+    enterGame(userId, user);
+  } catch (err) {
+    console.error(err);
+    showStatus("error", err.message || "Sign-in failed. The Stream rejected the request.");
+  } finally {
+    els.siSubmit.disabled = false;
+  }
+});
+
+els.logoutBtn.addEventListener("click", () => {
+  localStorage.removeItem("orv_session_user");
+  els.gameRoot.classList.add("hidden");
+  els.authCard.classList.remove("hidden");
+  els.signinForm.reset();
+  els.signupForm.reset();
+  clearStatus();
+});
+
+/* ---------- boot ---------- */
+(async function boot() {
+  try {
+    await ensureSchema();
+  } catch (err) {
+    console.warn("Schema check skipped/failed (likely a rules/CORS issue):", err.message);
+  }
+
+  const existingSession = localStorage.getItem("orv_session_user");
+  if (existingSession) {
+    try {
+      const user = await dbGet(`Users/${existingSession}`);
+      if (user && user.Account) {
+        enterGame(existingSession, user);
+      } else {
+        localStorage.removeItem("orv_session_user");
+      }
+    } catch (err) {
+      console.warn("Could not restore session:", err.message);
+    }
+  }
+})();
+</script>
+</body>
+</html>
