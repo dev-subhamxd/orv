@@ -1,0 +1,2103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project ORV — Constellation Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ss-cyan-primary: #00f0ff;
+  --ss-cyan-glow: rgba(0, 240, 255, 0.4);
+  --ss-bg-dark: rgba(10, 15, 25, 0.9);
+  --ss-border-cyan: #00a8ff;
+  --ss-gold-accent: #ffd700;
+  --ss-text-light: #e0f7fc;
+  --ss-red-error: #ff4d5e;
+  --ss-green-ok: #37ffab;
+  --ss-purple-accent: #c58bff;
+  --ss-font-main: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --ss-font-display: 'Oswald', var(--ss-font-main);
+}
+* { box-sizing: border-box; }
+body.star-stream-theme {
+  background: radial-gradient(circle at 50% 20%, #0c1424 0%, #050811 65%);
+  color: var(--ss-text-light);
+  font-family: var(--ss-font-main);
+  margin: 0;
+  min-height: 100vh;
+  padding: 20px 14px 60px;
+}
+body.star-stream-theme::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0,240,255,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,240,255,0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+#warp-bg { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; display: block; background: transparent; }
+
+.console-frame { position: relative; z-index: 1; max-width: 900px; margin: 0 auto; }
+.channel-tag {
+  text-align: center; font-size: 0.75rem; letter-spacing: 0.15em; text-transform: uppercase;
+  color: var(--ss-purple-accent); opacity: 0.85; margin-bottom: 4px;
+}
+.console-title {
+  text-align: center; font-size: 1.3rem; font-weight: bold; color: var(--ss-text-light);
+  margin: 0 0 16px;
+}
+.console-title span { color: var(--ss-purple-accent); }
+
+.system-window {
+  background: var(--ss-bg-dark);
+  border: 1px solid var(--ss-border-cyan);
+  box-shadow: 0 0 25px var(--ss-cyan-glow), inset 0 0 40px rgba(0,240,255,0.03);
+  backdrop-filter: blur(10px);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+.window-header {
+  background: linear-gradient(90deg, rgba(197,139,255,0.22), transparent);
+  color: var(--ss-purple-accent);
+  padding: 10px 16px;
+  font-weight: bold;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  border-bottom: 1px solid rgba(197,139,255,0.4);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.window-header .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ss-green-ok); box-shadow: 0 0 6px var(--ss-green-ok); }
+.panel-body { padding: 18px 16px; }
+
+/* ---------- identity gate ---------- */
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(224,247,252,0.55); margin-bottom: 6px; }
+.field select, .field input, .field textarea {
+  width: 100%;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(197,139,255,0.4);
+  color: var(--ss-text-light);
+  padding: 10px 12px;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  outline: none;
+}
+.field select:focus, .field input:focus, .field textarea:focus { border-color: var(--ss-purple-accent); box-shadow: 0 0 8px rgba(197,139,255,0.35); }
+.primary-btn {
+  width: 100%;
+  background: linear-gradient(90deg, rgba(197,139,255,0.9), rgba(0,168,255,0.9));
+  color: #04040a;
+  border: none;
+  padding: 12px 0;
+  border-radius: 4px;
+  font-family: inherit;
+  font-weight: bold;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+.primary-btn:hover:not(:disabled) { filter: brightness(1.1); }
+.primary-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.hidden { display: none !important; }
+
+.identity-badge {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; font-size: 0.85rem;
+}
+.identity-badge .name { color: var(--ss-purple-accent); font-weight: bold; }
+.identity-badge .trait { font-size: 0.7rem; color: rgba(224,247,252,0.5); display: block; margin-top: 2px; }
+.switch-link {
+  background: transparent; border: 1px solid var(--ss-border-cyan); color: var(--ss-cyan-primary);
+  padding: 6px 10px; border-radius: 4px; font-family: inherit; font-size: 0.65rem;
+  text-transform: uppercase; cursor: pointer; flex-shrink: 0;
+}
+
+/* ---------- incarnation list ---------- */
+.search-row { padding: 10px 14px 0; }
+.search-row input {
+  width: 100%; background: rgba(0,240,255,0.05); border: 1px solid var(--ss-border-cyan);
+  color: var(--ss-text-light); padding: 9px 12px; border-radius: 4px; font-family: inherit; font-size: 0.85rem;
+}
+.incarnation-list { padding: 10px 14px 14px; display: flex; flex-direction: column; gap: 8px; max-height: 340px; overflow-y: auto; }
+.incarnation-card {
+  border: 1px solid rgba(0,168,255,0.35); border-radius: 5px; padding: 9px 12px;
+  background: rgba(0,240,255,0.03); cursor: pointer; transition: background 0.15s, border-color 0.15s;
+  display: flex; justify-content: space-between; align-items: center; gap: 8px;
+}
+.incarnation-card:hover { background: rgba(0,240,255,0.1); border-color: var(--ss-cyan-primary); }
+.incarnation-card.selected { border-color: var(--ss-purple-accent); background: rgba(197,139,255,0.08); }
+.incarnation-card.pinned { border-color: var(--ss-gold-accent); box-shadow: 0 0 10px rgba(255,215,0,0.25); }
+.ic-name { font-size: 0.88rem; font-weight: bold; display: flex; align-items: center; gap: 6px; }
+.presence-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; display: inline-block; }
+.presence-dot.on { background: var(--ss-green-ok); box-shadow: 0 0 6px var(--ss-green-ok); }
+.presence-dot.off { background: rgba(224,247,252,0.25); }
+.ic-meta { font-size: 0.68rem; color: rgba(224,247,252,0.5); margin-top: 2px; }
+.ic-badges { display: flex; gap: 4px; flex-shrink: 0; }
+.ic-badge {
+  font-size: 0.6rem; padding: 2px 6px; border-radius: 8px; white-space: nowrap;
+  background: rgba(255,215,0,0.12); border: 1px solid rgba(255,215,0,0.4); color: var(--ss-gold-accent);
+}
+.ic-badge.mine { background: linear-gradient(90deg, rgba(255,215,0,0.25), rgba(0,240,255,0.25)); border-color: var(--ss-cyan-primary); color: var(--ss-text-light); }
+.list-empty { font-size: 0.75rem; color: rgba(224,247,252,0.4); font-style: italic; padding: 4px 2px; }
+
+/* ---------- detail panel ---------- */
+.detail-empty { padding: 30px 16px; text-align: center; font-size: 0.85rem; color: rgba(224,247,252,0.4); font-style: italic; }
+.detail-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding: 14px 16px 6px; }
+.detail-name { font-size: 1.05rem; font-weight: bold; color: var(--ss-text-light); }
+.detail-sponsor-line { font-size: 0.72rem; margin-top: 3px; }
+.detail-sponsor-line.none { color: rgba(224,247,252,0.4); }
+.detail-sponsor-line.mine { color: var(--ss-cyan-primary); }
+.detail-sponsor-line.other { color: var(--ss-gold-accent); }
+
+.stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 8px 16px 4px; }
+.mini-tile { text-align: center; padding: 8px 4px; border-radius: 5px; background: rgba(0,240,255,0.04); border: 1px solid rgba(0,168,255,0.3); }
+.mini-tile .mt-icon { font-size: 1rem; }
+.mini-tile .mt-label { font-size: 0.58rem; text-transform: uppercase; color: rgba(224,247,252,0.5); margin-top: 2px; }
+.mini-tile .mt-val { font-size: 0.9rem; font-weight: bold; color: var(--ss-cyan-primary); }
+
+.attr-row-mini { display: flex; justify-content: space-between; font-size: 0.75rem; padding: 4px 16px; color: rgba(224,247,252,0.75); }
+.attr-row-mini span:last-child { color: var(--ss-cyan-primary); font-weight: bold; }
+
+.section-label {
+  padding: 10px 16px 4px; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em;
+  color: rgba(197,139,255,0.75); border-top: 1px dashed rgba(197,139,255,0.25); margin-top: 8px;
+}
+.chip-row { padding: 4px 16px 8px; display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-size: 0.68rem; padding: 4px 9px; border-radius: 12px; background: rgba(0,240,255,0.08); border: 1px solid rgba(0,168,255,0.35); }
+.chip.cleared { border-color: var(--ss-green-ok); color: var(--ss-green-ok); }
+
+.log-scroll { max-height: 220px; overflow-y: auto; padding: 6px 16px 12px; }
+.log-entry { font-size: 0.72rem; padding: 6px 8px; border-left: 2px solid rgba(0,168,255,0.4); margin-bottom: 6px; background: rgba(0,240,255,0.03); border-radius: 2px; }
+.log-entry .le-top { display: flex; justify-content: space-between; color: rgba(224,247,252,0.45); font-size: 0.62rem; text-transform: uppercase; }
+.log-entry .le-choice { color: var(--ss-text-light); margin-top: 2px; }
+.log-entry .le-fail { color: var(--ss-red-error); }
+.log-empty { font-size: 0.72rem; color: rgba(224,247,252,0.4); font-style: italic; padding: 4px 16px 12px; }
+
+.action-block { padding: 12px 16px; border-top: 1px dashed rgba(197,139,255,0.25); }
+.action-block h4 { margin: 0 0 10px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ss-purple-accent); }
+.reward-row { display: flex; gap: 8px; margin-bottom: 10px; }
+.reward-row .field { flex: 1; margin-bottom: 0; }
+.sponsor-btn {
+  width: 100%; background: rgba(255,215,0,0.1); border: 1px solid var(--ss-gold-accent); color: var(--ss-gold-accent);
+  padding: 10px 0; border-radius: 4px; font-family: inherit; font-weight: bold; font-size: 0.8rem;
+  text-transform: uppercase; letter-spacing: 0.05em; cursor: pointer; margin-top: 4px;
+}
+.sponsor-btn:hover { background: rgba(255,215,0,0.2); }
+.sponsor-btn.revoke { border-color: var(--ss-red-error); color: var(--ss-red-error); background: rgba(255,77,94,0.08); }
+.sponsor-btn.revoke:hover { background: rgba(255,77,94,0.18); }
+
+.console-status {
+  margin-top: 10px; font-size: 0.78rem; padding: 9px 12px; border-radius: 4px; border-left: 3px solid transparent; display: none;
+}
+.console-status.show { display: block; }
+.console-status.ok { color: var(--ss-green-ok); background: rgba(55,255,171,0.08); border-left-color: var(--ss-green-ok); }
+.console-status.error { color: var(--ss-red-error); background: rgba(255,77,94,0.08); border-left-color: var(--ss-red-error); }
+
+/* ---------- top-of-screen save toast (unmissable, unlike the buried
+   .console-status line which can sit below the fold on a long panel) ---------- */
+#save-toast {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-14px);
+  z-index: 999;
+  padding: 11px 22px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: #04140d;
+  background: var(--ss-green-ok);
+  box-shadow: 0 6px 22px rgba(55,255,171,0.45);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  max-width: 90vw;
+  text-align: center;
+}
+#save-toast.error { color: #2a0507; background: var(--ss-red-error); box-shadow: 0 6px 22px rgba(255,77,94,0.45); }
+#save-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ---------- Save button success flash ---------- */
+.con-save-btn.save-success {
+  background: var(--ss-green-ok) !important;
+  border-color: var(--ss-green-ok) !important;
+  color: #04140d !important;
+  font-weight: 700;
+}
+
+.console-footer-note {
+  text-align: center; font-size: 0.68rem; color: rgba(224,247,252,0.35); margin-top: 10px; line-height: 1.5;
+}
+.console-footer-note a { color: var(--ss-cyan-primary); }
+
+/* ---------- login gate (Evernight authentication) ---------- */
+:root { --ss-moon-accent: #b9c6ff; --ss-moon-glow: rgba(185, 198, 255, 0.45); }
+#login-gate .window-header {
+  background: linear-gradient(90deg, rgba(185,198,255,0.25), transparent);
+  color: var(--ss-moon-accent);
+  border-bottom: 1px solid rgba(185,198,255,0.4);
+}
+#login-gate.system-window {
+  border-color: var(--ss-moon-accent);
+  box-shadow: 0 0 25px var(--ss-moon-glow), inset 0 0 40px rgba(185,198,255,0.03);
+}
+#login-gate .field select:focus, #login-gate .field input:focus {
+  border-color: var(--ss-moon-accent); box-shadow: 0 0 8px var(--ss-moon-glow);
+}
+#login-gate .primary-btn {
+  background: linear-gradient(90deg, rgba(185,198,255,0.9), rgba(0,168,255,0.9));
+}
+.login-error {
+  font-size: 0.78rem; color: var(--ss-red-error); background: rgba(255,77,94,0.08);
+  border-left: 3px solid var(--ss-red-error); padding: 9px 12px; border-radius: 4px;
+  margin-top: 10px; display: none;
+}
+.login-error.show { display: block; }
+
+/* Evernight Moon identity — visually distinct from the six canon Constellations */
+.identity-badge.evernight { background: linear-gradient(90deg, rgba(185,198,255,0.1), transparent); }
+.identity-badge.evernight .name {
+  background: linear-gradient(90deg, var(--ss-moon-accent), var(--ss-text-light));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.incarnation-card.evernight-pinned { border-color: var(--ss-moon-accent); box-shadow: 0 0 10px var(--ss-moon-glow); }
+.ic-badge.evernight { background: linear-gradient(90deg, rgba(185,198,255,0.3), rgba(0,168,255,0.2)); border-color: var(--ss-moon-accent); color: var(--ss-text-light); }
+.detail-sponsor-line.evernight { color: var(--ss-moon-accent); }
+
+/* ---------- constellation registry panel ---------- */
+.constellation-row { border: 1px solid rgba(185,198,255,0.25); border-radius: 5px; padding: 10px 12px; margin-bottom: 10px; }
+.constellation-row .constellation-row-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.constellation-row .constellation-row-name { font-weight: bold; color: var(--ss-moon-accent); }
+.constellation-row .constellation-row-self { font-size: 0.65rem; color: rgba(224,247,252,0.5); font-weight: normal; margin-left: 6px; }
+.constellation-row .field { margin-bottom: 8px; }
+.constellation-row .field.checkbox-field { display: flex; align-items: center; gap: 8px; }
+.constellation-row .field.checkbox-field input[type="checkbox"] { width: auto; }
+.constellation-row .field.checkbox-field label { margin-bottom: 0; }
+.constellation-row-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.danger-link { border-color: var(--ss-red-error) !important; color: var(--ss-red-error) !important; }
+.danger-link:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* ---------- Constellation <-> Incarnation DM chat ---------- */
+.dm-thread { max-height: 320px; overflow-y: auto; padding: 6px 16px; display: flex; flex-direction: column; gap: 8px; }
+.dm-bubble { max-width: 78%; padding: 8px 11px; border-radius: 10px; font-size: 0.8rem; line-height: 1.4; }
+.dm-bubble.mine { align-self: flex-end; background: rgba(197,139,255,0.18); border: 1px solid rgba(197,139,255,0.4); border-bottom-right-radius: 2px; }
+.dm-bubble.theirs { align-self: flex-start; background: rgba(0,240,255,0.06); border: 1px solid rgba(0,168,255,0.3); border-bottom-left-radius: 2px; }
+.dm-bubble .dm-time { display: block; font-size: 0.6rem; color: rgba(224,247,252,0.4); margin-top: 3px; }
+.dm-empty { font-size: 0.75rem; color: rgba(224,247,252,0.4); font-style: italic; padding: 10px 16px; }
+.dm-compose { padding: 10px 16px; border-top: 1px dashed rgba(197,139,255,0.25); }
+.dm-compose-row { display: flex; gap: 8px; }
+.dm-compose-row input { flex: 1; }
+.dm-templates { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.dm-template-btn {
+  font-size: 0.65rem; padding: 5px 9px; border-radius: 10px; cursor: pointer;
+  background: rgba(255,215,0,0.08); border: 1px solid rgba(255,215,0,0.35); color: var(--ss-gold-accent);
+}
+.dm-template-btn:hover { background: rgba(255,215,0,0.18); }
+.dm-send-btn {
+  background: linear-gradient(90deg, rgba(197,139,255,0.9), rgba(0,168,255,0.9));
+  color: #04040a; border: none; padding: 0 16px; border-radius: 4px; font-family: inherit;
+  font-weight: bold; font-size: 0.78rem; cursor: pointer;
+}
+.dm-bubble { position: relative; }
+.dm-del-btn {
+  position: absolute; top: -6px; right: -6px; width: 16px; height: 16px; border-radius: 50%;
+  background: rgba(10,15,25,0.9); border: 1px solid var(--ss-red-error); color: var(--ss-red-error);
+  font-size: 0.6rem; line-height: 1; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; opacity: 0; transition: opacity 0.15s;
+}
+.dm-bubble.mine:hover .dm-del-btn { opacity: 1; }
+.dm-options-row { display: flex; align-items: center; gap: 6px; padding: 0 16px 8px; font-size: 0.68rem; color: rgba(224,247,252,0.6); }
+.dm-ai-toggle { display: flex; align-items: center; gap: 5px; cursor: pointer; user-select: none; }
+.dm-ai-toggle input { accent-color: var(--ss-purple-accent); cursor: pointer; }
+
+/* ---------- Global Chat (dropdown/collapsible) ---------- */
+.gc-header-toggle {
+  background: none; border: none; color: var(--ss-cyan-primary); cursor: pointer;
+  font-size: 0.75rem; padding: 2px 6px; transition: transform 0.15s;
+}
+.gc-header-toggle.open { transform: rotate(180deg); }
+.global-chat-body.hidden { display: none; }
+.gc-feed { max-height: 260px; overflow-y: auto; padding: 10px 16px; display: flex; flex-direction: column; gap: 8px; }
+.gc-bubble { max-width: 82%; padding: 8px 11px; border-radius: 10px; font-size: 0.8rem; line-height: 1.4; position: relative; }
+.gc-bubble .gc-sender { display: block; font-size: 0.65rem; font-weight: bold; margin-bottom: 2px; opacity: 0.85; }
+.gc-bubble.mine { align-self: flex-end; background: rgba(197,139,255,0.18); border: 1px solid rgba(197,139,255,0.4); border-bottom-right-radius: 2px; }
+.gc-bubble.constellation { align-self: flex-start; background: rgba(255,215,0,0.08); border: 1px solid rgba(255,215,0,0.35); color: var(--ss-gold-accent); }
+.gc-bubble.player { align-self: flex-start; background: rgba(0,240,255,0.06); border: 1px solid rgba(0,168,255,0.3); border-bottom-left-radius: 2px; }
+.gc-bubble .dm-time { display: block; font-size: 0.6rem; color: rgba(224,247,252,0.4); margin-top: 3px; }
+
+/* ============================================================
+   READABILITY & SPACING OVERHAUL
+   More breathing room in every panel, a calmer glow so several
+   windows on screen at once don't fight each other, and a real
+   master/detail layout on wide screens (Incarnations list beside
+   the file instead of one long scroll) so the console doesn't
+   feel like one cramped column no matter how wide the browser is.
+   ============================================================ */
+
+body.star-stream-theme { padding: 32px 20px 60px; }
+
+.system-window { margin-bottom: 18px; }
+.panel-body { padding: 22px 20px; }
+.window-header { padding: 12px 18px; }
+
+/* calmer, less stacked-up glow across many windows */
+.system-window {
+  box-shadow: 0 0 16px rgba(0,240,255,0.2), inset 0 0 26px rgba(0,240,255,0.02);
+}
+
+.identity-badge { padding: 14px 18px; }
+.search-row { padding: 14px 16px 0; }
+.incarnation-list { padding: 12px 16px 16px; gap: 10px; max-height: 420px; }
+.incarnation-card { padding: 11px 14px; }
+
+.stat-grid { gap: 10px; padding: 12px 18px 6px; }
+.mini-tile { padding: 11px 4px; }
+.attr-row-mini { padding: 6px 18px; }
+.section-label { padding: 12px 18px 6px; }
+.chip-row { padding: 6px 18px 10px; gap: 8px; }
+.log-scroll { max-height: 260px; padding: 8px 18px 14px; }
+.log-entry { padding: 8px 10px; margin-bottom: 8px; line-height: 1.5; }
+
+.action-block { padding: 16px 18px; }
+.reward-row { gap: 10px; margin-bottom: 12px; }
+
+.dm-thread { max-height: 340px; padding: 8px 18px; gap: 10px; }
+.dm-bubble, .gc-bubble { padding: 10px 13px; line-height: 1.55; }
+.dm-compose { padding: 12px 18px; }
+.dm-options-row { padding: 0 18px 10px; }
+
+.gc-feed { max-height: 300px; padding: 12px 18px; gap: 10px; }
+
+.constellation-row { padding: 12px 14px; margin-bottom: 12px; }
+
+/* ---------- Desktop: Incarnations list beside the detail file ---------- */
+@media (min-width: 980px) {
+  .console-frame { max-width: 1320px; }
+
+  #console-root {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    align-items: start;
+    gap: 20px;
+  }
+  #console-root > .system-window { margin-bottom: 0; }
+
+  /* left column: identity, the evernight-only registry, the incarnation list */
+  #console-root > .system-window:has(.identity-badge),
+  #constellations-panel,
+  #console-root > .system-window:has(#incarnation-list) {
+    grid-column: 1;
+  }
+
+  /* right column: the selected Incarnation's file, spanning the left stack */
+  #detail-panel { grid-column: 2; grid-row: 1 / span 3; }
+
+  /* full width */
+  #global-chat-panel { grid-column: 1 / -1; }
+}
+
+/* ============================================================
+   ORV SYSTEM-WINDOW SKIN
+   Reskins panels and in-console entries to look like the Star
+   Stream's own broadcast UI from the source material: angular
+   clipped-corner frames, small corner accent marks, faint window-
+   chrome glyphs in the header, and the condensed display face the
+   Stream uses for its own text.
+   ============================================================ */
+
+.window-header,
+.console-title,
+.detail-name,
+.ic-name,
+.sc-title,
+.constellation-row-name,
+.mt-label,
+.ic-badge,
+.chip {
+  font-family: var(--ss-font-display);
+}
+.window-header { font-weight: 600; }
+.console-title { font-weight: 700; letter-spacing: 0.02em; }
+
+/* angular clipped-corner frame, like a broadcast panel rather than a plain card */
+.system-window {
+  position: relative;
+  clip-path: polygon(
+    16px 0, calc(100% - 16px) 0, 100% 16px,
+    100% calc(100% - 16px), calc(100% - 16px) 100%, 16px 100%,
+    0 calc(100% - 16px), 0 16px
+  );
+}
+.system-window::before,
+.system-window::after {
+  content: "";
+  position: absolute;
+  width: 13px;
+  height: 13px;
+  pointer-events: none;
+}
+.system-window::before {
+  top: 0; left: 0;
+  border-top: 2px solid var(--ss-cyan-primary);
+  border-left: 2px solid var(--ss-cyan-primary);
+  opacity: 0.85;
+}
+.system-window::after {
+  bottom: 0; right: 0;
+  border-bottom: 2px solid var(--ss-cyan-primary);
+  border-right: 2px solid var(--ss-cyan-primary);
+  opacity: 0.85;
+}
+#login-gate.system-window::before, #login-gate.system-window::after {
+  border-color: var(--ss-moon-accent);
+}
+
+/* faint window-chrome glyphs (— □ ✕) in every header, like the source's own panels */
+.window-header { position: relative; padding-right: 52px; }
+.window-header::after {
+  content: "— \25A1 \2715";
+  position: absolute;
+  top: 50%; right: 16px;
+  transform: translateY(-50%);
+  font-family: var(--ss-font-main);
+  font-size: 0.62rem;
+  letter-spacing: 2px;
+  opacity: 0.4;
+  pointer-events: none;
+  white-space: nowrap;
+}
+@media (max-width: 480px) {
+  .window-header { padding-right: 18px; }
+  .window-header::after { display: none; }
+}
+
+/* smaller "notification popup" corner-clip on individual roster/log entries */
+.incarnation-card,
+.constellation-row,
+.log-entry {
+  position: relative;
+  clip-path: polygon(
+    7px 0, calc(100% - 7px) 0, 100% 7px,
+    100% calc(100% - 7px), calc(100% - 7px) 100%, 7px 100%,
+    0 calc(100% - 7px), 0 7px
+  );
+}
+
+/* pinned/sponsor rows radiate slowly, like the source's own gold fable panels */
+@keyframes ss-radiate {
+  0%, 100% { box-shadow: 0 0 10px rgba(255,215,0,0.2); }
+  50% { box-shadow: 0 0 16px rgba(255,215,0,0.4); }
+}
+.incarnation-card.pinned { animation: ss-radiate 2.6s ease-in-out infinite; }
+</style>
+</head>
+<body class="star-stream-theme">
+
+<div id="save-toast"></div>
+
+<canvas id="warp-bg"></canvas>
+
+<div class="console-frame">
+  <div class="channel-tag">Star Stream // Constellation Console</div>
+  <h1 class="console-title">Watch. Reward. <span>Sponsor.</span></h1>
+
+  <!-- LOGIN GATE -->
+  <div id="login-gate" class="system-window">
+    <div class="window-header"><span>Constellation Authentication</span><span class="dot"></span></div>
+    <div class="panel-body">
+      <p style="font-size:0.8rem; color:rgba(224,247,252,0.6); margin-top:0;">
+        Sign in as a Constellation — this checks your username and password directly against its
+        record under ORV/Constellations, the same way the main game checks player logins. Signing
+        in doesn't wake the Constellation up: it's already sponsoring and watching in the background
+        whether or not anyone is signed in as it. Signing in just means you're the one at the wheel
+        for rewards and messages right now. Evernight perms (full roster + account management)
+        depend on that record's <code>evernight</code> flag.
+      </p>
+      <div class="field">
+        <label for="login-username">Username</label>
+        <input id="login-username" type="text" autocomplete="username" placeholder="Username">
+      </div>
+      <div class="field">
+        <label for="login-password">Password</label>
+        <input id="login-password" type="password" autocomplete="current-password" placeholder="Password">
+      </div>
+      <button class="primary-btn" id="login-btn">Authenticate</button>
+      <div id="login-error" class="login-error">Incorrect username or password, or this account isn't a Constellation.</div>
+    </div>
+  </div>
+
+  <!-- CONSOLE (shown after sign-in) -->
+  <div id="console-root" class="hidden">
+    <div class="system-window">
+      <div class="identity-badge">
+        <div>
+          <span class="name" id="identity-name">—</span>
+          <span class="trait" id="identity-trait">—</span>
+        </div>
+        <div style="display:flex; gap:8px; margin-left:8px; flex-shrink:0;">
+          <button class="switch-link hidden" id="manage-accounts-toggle">☾ Manage Accounts ▾</button>
+          <button class="switch-link" id="admin-logout-btn">Sign Out</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- EVERNIGHT-ONLY: Constellation Registry (identity + login are the same record now).
+         Collapsed by default and opened via the "Manage Accounts" toggle above — most sessions
+         are spent working the Incarnations list below, so this large panel shouldn't sit open
+         and force extra scrolling to reach it every time. -->
+    <div id="constellations-panel" class="system-window hidden">
+      <div class="window-header"><span>☾ Constellation Registry</span><span class="dot"></span></div>
+      <div class="panel-body">
+        <p style="font-size:0.78rem; color:rgba(224,247,252,0.55); margin-top:0;">
+          Only visible to the Evernight seat. Each Constellation is one record: name, trait,
+          username, and password. Edit a row and press Save, reset a password by typing a new one,
+          and grant or revoke Evernight. Leave username/password blank to keep a Constellation as a
+          background-only presence — it still sponsors and rewards Incarnations, it just has no one
+          signed in as it.
+        </p>
+        <div id="constellations-list"></div>
+
+        <div class="section-label" style="border-top:1px dashed rgba(185,198,255,0.3); padding-left:0; margin-top:16px;">Add New Constellation</div>
+        <div class="field"><label>Name</label><input id="con-new-name" type="text" placeholder="e.g. Watchful Old Woman"></div>
+        <div class="field"><label>Trait</label><input id="con-new-trait" type="text" placeholder="What this Constellation rewards"></div>
+        <div class="field"><label>Username (optional — leave blank for background-only)</label><input id="con-new-username" type="text" placeholder="Login username"></div>
+        <div class="field"><label>Password</label><input id="con-new-password" type="password" placeholder="Required if setting a username"></div>
+        <div class="field checkbox-field" style="display:flex; align-items:center; gap:8px;">
+          <input type="checkbox" id="con-new-evernight" style="width:auto;">
+          <label for="con-new-evernight" style="margin-bottom:0;">Grant Evernight perms (full roster + account management)</label>
+        </div>
+        <button class="primary-btn" id="con-create-btn">Create Constellation</button>
+        <div id="constellations-status" class="console-status"></div>
+      </div>
+    </div>
+
+    <div class="system-window">
+      <div class="window-header">
+        <span>Incarnations</span>
+        <span id="online-count" style="font-size:0.68rem; text-transform:none; letter-spacing:0; color:var(--ss-green-ok);"></span>
+      </div>
+      <div class="search-row"><input id="search-input" type="text" placeholder="Search by name..."></div>
+      <div id="incarnation-list" class="incarnation-list"></div>
+    </div>
+
+    <div id="detail-panel" class="system-window">
+      <div id="detail-empty" class="detail-empty">Select an Incarnation above to view their file.</div>
+      <div id="detail-body" class="hidden">
+        <div class="detail-header">
+          <div>
+            <div class="detail-name" id="d-name">—</div>
+            <div class="detail-sponsor-line" id="d-sponsor-line"></div>
+          </div>
+        </div>
+
+        <div class="stat-grid">
+          <div class="mini-tile"><div class="mt-icon">🪙</div><div class="mt-val" id="d-coins">0</div><div class="mt-label">Coins</div></div>
+          <div class="mini-tile"><div class="mt-icon">✦</div><div class="mt-val" id="d-favor">0</div><div class="mt-label">Favor</div></div>
+          <div class="mini-tile"><div class="mt-icon">☯</div><div class="mt-val" id="d-karma">0</div><div class="mt-label">Karma</div></div>
+          <div class="mini-tile"><div class="mt-icon">♡</div><div class="mt-val" id="d-mental">100</div><div class="mt-label">Stability</div></div>
+        </div>
+
+        <div class="section-label">Attributes</div>
+        <div id="d-stats"></div>
+
+        <div class="section-label">Scenarios Cleared</div>
+        <div class="chip-row" id="d-scenarios"></div>
+
+        <div class="section-label">Dokkaebi Bag</div>
+        <div class="chip-row" id="d-inventory"></div>
+
+        <div class="section-label">Choice History</div>
+        <div id="d-choicelog" class="log-scroll"></div>
+
+        <div class="action-block">
+          <h4>📡 Transmit to this Incarnation</h4>
+          <div class="reward-row">
+            <div class="field"><label>Coin Reward</label><input id="reward-coins" type="number" min="0" value="0"></div>
+            <div class="field"><label>Favor Reward</label><input id="reward-favor" type="number" min="0" value="0"></div>
+          </div>
+          <div class="field">
+            <label>Message (appears in their Constellation Stream Log — one-way, they cannot reply)</label>
+            <textarea id="reward-message" rows="2" placeholder="e.g. rewards your composed strategy in Carriage 3707."></textarea>
+          </div>
+          <button class="primary-btn" id="send-transmission-btn">Transmit</button>
+
+          <div id="sponsor-action-area" style="margin-top:14px;"></div>
+
+          <div id="console-status" class="console-status"></div>
+        </div>
+
+        <div class="section-label" style="margin-top:14px;">☾ Direct Message (private, two-way)</div>
+        <div id="dm-thread" class="dm-thread"><div class="dm-empty">Open a conversation below.</div></div>
+        <div class="dm-compose">
+          <div class="dm-options-row">
+            <label class="dm-ai-toggle" id="dm-ai-toggle-wrap">
+              <input type="checkbox" id="dm-ai-toggle">
+              ✨ Translate into Constellation tone before sending
+            </label>
+          </div>
+          <div class="dm-compose-row">
+            <input id="dm-input" type="text" placeholder="Message this Incarnation...">
+            <button class="dm-send-btn" id="dm-send-btn">Send</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="global-chat-panel" class="system-window">
+      <div class="window-header">
+        <span>🌐 Global Chat — All Incarnations &amp; Constellations</span>
+        <button class="gc-header-toggle open" id="gc-toggle-btn" type="button" aria-label="Collapse Global Chat">▾</button>
+      </div>
+      <div id="global-chat-body" class="global-chat-body">
+        <div id="gc-feed" class="gc-feed"><div class="dm-empty">Loading…</div></div>
+        <div class="dm-options-row">
+          <label class="dm-ai-toggle" id="gc-ai-toggle-wrap">
+            <input type="checkbox" id="gc-ai-toggle">
+            ✨ Translate into Constellation tone before sending
+          </label>
+        </div>
+        <div class="dm-compose-row" style="padding: 0 16px 14px;">
+          <input id="gc-input" type="text" placeholder="Say something to everyone...">
+          <button class="dm-send-btn" id="gc-send-btn">Send</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="console-footer-note">
+      Reads and writes the same <code>/ORV</code> Firebase tree as the main game.
+      Changes here reflect in the player's app on their next Ledger refresh or message poll (~12s).
+    </div>
+  </div>
+</div>
+
+<!-- Local, gitignored config file — see config.example.js -->
+<script src="config.js"></script>
+
+<script type="module">
+/* =========================================================================
+   PROJECT ORV — CONSTELLATION CONSOLE (constellations.html)
+   =========================================================================
+   Same DB as index.html, and the same auth model: no per-admin Firebase
+   Auth account. Entry to this page requires a username + password that is
+   checked directly against a record under ORV/Constellations (looked up
+   via ConstellationUsernameIndex, same pattern as the player UsernameIndex
+   in index.html) — salted SHA-256 hash comparison, done client-side,
+   exactly like a player login. Firebase Auth is still initialized here,
+   but only to sign in anonymously, purely so the RTDB `auth != null` rule
+   doesn't reject fetch() calls outright — it has nothing to do with which
+   Constellation is logged in.
+
+   Constellations and admin accounts are the SAME thing now — there is no
+   separate persona picker or admin roster. A Constellation record is just
+   { name, trait, username?, passwordHash?, salt?, evernight?, createdAt? }.
+   username/passwordHash/salt are optional: a Constellation with none of
+   those set is a background-only presence — it can still be sponsoring
+   Incarnations and showing up in the Stream, nobody can just sign in as
+   it until Evernight sets credentials for it from the Registry panel.
+   Signing in as a Constellation doesn't create it or wake it up; it just
+   means a person is now at the wheel for that identity's rewards and
+   messages. "Evernight" permission (full roster + account management)
+   comes straight off the logged-in Constellation's own `evernight` flag.
+
+   On first load this file auto-migrates any older ORV/Admins +
+   ORV/Constellations/adminpanel split (from a previous version of this
+   console) into the unified ORV/Constellations/{key} shape described
+   above, then deletes the old nodes. Safe to run more than once — it's a
+   no-op once the old nodes are gone.
+   ========================================================================= */
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
+import {
+  getAuth, signInAnonymously, onIdTokenChanged
+} from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
+import {
+  getDatabase, ref, push, onChildAdded, remove, off, query, limitToLast, get
+} from "https://www.gstatic.com/firebasejs/10.13.1/firebase-database.js";
+
+if (!window.FIREBASE_CONFIG) {
+  document.body.innerHTML = '<div style="padding:40px;font-family:monospace;color:#ff4d5e;">Missing config.js — copy config.example.js to config.js and fill in your Firebase project values.</div>';
+  throw new Error('Missing window.FIREBASE_CONFIG');
+}
+const firebaseConfig = window.FIREBASE_CONFIG;
+const firebaseApp = initializeApp(firebaseConfig);
+const auth = getAuth(firebaseApp);
+
+let CachedIdToken = null;
+onIdTokenChanged(auth, async (user) => {
+  CachedIdToken = user ? await user.getIdToken() : null;
+});
+
+/* Every visitor needs an anonymous Firebase session before any DB call
+   will pass the "auth != null" rule — same plumbing as index.html, and
+   nothing to do with the admin username/password check below. Requires
+   "Anonymous" enabled under Sign-in method in the Firebase console. */
+let AnonymousReady = signInAnonymously(auth).catch((err) => {
+  console.error("Anonymous auth failed — DB calls will be rejected:", err.message);
+});
+
+const DB_BASE_URL = "https://star-community-orv-dokaebi-default-rtdb.asia-southeast1.firebasedatabase.app";
+const DB_ROOT = `${DB_BASE_URL}/ORV`;
+// Live SDK handle, used only by the DM chat relay below — everything else
+// on this page still talks to the DB over plain REST (dbGet/dbPut/etc.)
+// to stay consistent with the rest of the console.
+const rtdb = getDatabase(firebaseApp, DB_BASE_URL);
+function withAuthQS(path) {
+  const sep = path.includes("?") ? "&" : "?";
+  return CachedIdToken ? `${path}${sep}auth=${encodeURIComponent(CachedIdToken)}` : path;
+}
+async function dbGet(path) {
+  await AnonymousReady;
+  const res = await fetch(withAuthQS(`${DB_ROOT}/${path}.json`));
+  if (!res.ok) throw new Error(`DB read failed (${res.status})`);
+  return res.json();
+}
+async function dbPut(path, value) {
+  await AnonymousReady;
+  const res = await fetch(withAuthQS(`${DB_ROOT}/${path}.json`), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(value)
+  });
+  if (!res.ok) throw new Error(`DB write failed (${res.status})`);
+  return res.json();
+}
+async function dbPush(path, value) {
+  await AnonymousReady;
+  const res = await fetch(withAuthQS(`${DB_ROOT}/${path}.json`), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(value)
+  });
+  if (!res.ok) throw new Error(`DB push failed (${res.status})`);
+  return res.json();
+}
+async function dbDelete(path) {
+  await AnonymousReady;
+  const res = await fetch(withAuthQS(`${DB_ROOT}/${path}.json`), { method: "DELETE" });
+  if (!res.ok) throw new Error(`DB delete failed (${res.status})`);
+  return res.json();
+}
+
+/* ---------- crypto helpers (same scheme as index.html) ---------- */
+async function sha256(text) {
+  const data = new TextEncoder().encode(text);
+  const hashBuf = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+async function hashPassword(password, salt) {
+  return sha256(`${salt}:${password}`);
+}
+function randomSalt() {
+  return crypto.randomUUID().replace(/-/g, "");
+}
+function normalizeUsername(username) {
+  return username.trim().toLowerCase();
+}
+async function findConstellationByUsername(username) {
+  const key = await dbGet(`${USERNAME_INDEX_PATH}/${normalizeUsername(username)}`);
+  if (!key) return null;
+  const record = await dbGet(`Constellations/${key}`);
+  if (!record || !record.username) return null; // stale index entry — treat as not found
+  return { key, record };
+}
+
+/* Constellation records live at ORV/Constellations/{key}, one record per
+   Constellation, unified with login. Seeded once on first boot only if the
+   node is completely empty (a genuinely fresh database) — these seeded
+   entries have no username/password, so they're background-only until
+   Evernight sets credentials for one of them by hand in the Firebase
+   console (see SETUP.md) to bootstrap the very first sign-in. */
+const REGISTRY_PATH = "Constellations";
+const USERNAME_INDEX_PATH = "ConstellationUsernameIndex";
+const SEED_CONSTELLATIONS = {
+  foxyy:     { name: "Foxyy of the Evernight Kitsune", trait: "The Author's own seat behind the Stream — answers to no single virtue, and watches every channel at once." },
+  demon:     { name: "Demon-like Judge of Fire",   trait: "Rewards compassion, self-sacrifice, protecting the weak." },
+  abyssal:   { name: "Abyssal Black Flame Dragon",  trait: "Rewards violence, destruction, dramatic carnage." },
+  secretive: { name: "Secretive Plotter",           trait: "Rewards cunning, indirect solutions, clever loopholes." },
+  sage:      { name: "Great Sage, Equal of Heaven", trait: "Rewards raw physical prowess and brute-force spectacle." },
+  monarch:   { name: "Monarch of the Small Sea",    trait: "Scoffs at submission; rewards defiance." },
+  maritime:  { name: "Maritime War God",            trait: "Rewards flawless group coordination and tactics." }
+};
+let CONSTELLATIONS = {}; // populated from the DB before the login gate is usable
+const STAT_LABELS = { physique: "Physique", strength: "Strength", agility: "Agility", magic: "Magic Power", perception: "Perception" };
+
+async function loadConstellationRegistry() {
+  let registry = await dbGet(REGISTRY_PATH);
+  const hasRealEntries = registry && typeof registry === "object" &&
+    Object.values(registry).some(rec => rec && typeof rec === "object" && rec.name);
+  if (!hasRealEntries) {
+    registry = SEED_CONSTELLATIONS;
+    await dbPut(REGISTRY_PATH, registry);
+  }
+  CONSTELLATIONS = {};
+  for (const [key, rec] of Object.entries(registry)) {
+    if (!rec || typeof rec !== "object" || !rec.name) continue; // skip _meta / stray keys
+    CONSTELLATIONS[key] = rec;
+  }
+}
+
+/* index.html's DM contact list (and its "who exists" catalog generally)
+   reads from Characters/Constellations — a credential-free public mirror,
+   deliberately separate from Constellations/{key} so a player's browser
+   never fetches a passwordHash/salt over REST. That mirror only gets
+   written by ensureSchema()'s one-time seed on the player side, so it
+   silently drifts out of sync with the real roster the moment Evernight
+   renames, creates, or deletes a Constellation here — which is exactly
+   what happened to "Foxyy" after a rename. Re-synced (full overwrite, so
+   deletions and renames both take effect, not just additions) every time
+   this console loads the registry, and again after any create/save/delete
+   below, so it can never drift for more than a few seconds. Best-effort:
+   a failure here shouldn't block Evernight's actual action. */
+async function syncPublicConstellationCatalog() {
+  try {
+    const publicCatalog = {};
+    for (const [key, c] of Object.entries(CONSTELLATIONS)) {
+      publicCatalog[key] = { name: c.name, trait: c.trait || "" };
+    }
+    await dbPut("Characters/Constellations", publicCatalog);
+  } catch (err) {
+    console.warn("Failed to sync public Constellation catalog:", err.message);
+  }
+}
+
+/* ---------- one-time migration from the old split Admins/Constellations
+   shape (if this DB was set up on a previous version of this console) ---- */
+async function migrateAdminsToConstellations() {
+  const [oldAdmins, oldRegistry] = await Promise.all([
+    dbGet("Admins"),
+    dbGet("Constellations/adminpanel")
+  ]);
+  const hasOldAdmins = oldAdmins && typeof oldAdmins === "object";
+  const hasOldRegistry = oldRegistry && typeof oldRegistry === "object";
+  if (!hasOldAdmins && !hasOldRegistry) return; // nothing to migrate
+
+  const merged = {};
+  if (hasOldRegistry) {
+    for (const [key, persona] of Object.entries(oldRegistry)) {
+      if (!persona || !persona.name) continue;
+      merged[key] = { name: persona.name, trait: persona.trait || "" };
+    }
+  }
+  if (hasOldAdmins) {
+    for (const [uid, admin] of Object.entries(oldAdmins)) {
+      if (!admin || !admin.username) continue; // skip the _meta placeholder
+      const key = admin.constellationKey;
+      if (!key) continue;
+      if (!merged[key]) merged[key] = { name: key, trait: "" };
+      merged[key].username = admin.username;
+      merged[key].passwordHash = admin.passwordHash;
+      merged[key].salt = admin.salt;
+      merged[key].evernight = !!admin.evernight;
+      merged[key].createdAt = admin.createdAt || Date.now();
+    }
+  }
+
+  for (const [key, rec] of Object.entries(merged)) {
+    await dbPut(`Constellations/${key}`, rec);
+    if (rec.username) {
+      await dbPut(`${USERNAME_INDEX_PATH}/${normalizeUsername(rec.username)}`, key);
+    }
+  }
+
+  if (hasOldAdmins) {
+    await dbDelete("Admins");
+    await dbDelete("AdminUsernameIndex");
+  }
+  await dbDelete("Constellations/adminpanel");
+  await dbPut("Meta/constellationsMigratedAt", Date.now());
+  console.info("Migrated Admins + Constellations/adminpanel -> unified Constellations/{key}.");
+}
+
+let CurrentConstellationKey = null; // the logged-in Constellation (fixed for the session)
+let CurrentIsEvernight = false;     // == !!CONSTELLATIONS[CurrentConstellationKey]?.evernight
+let AllUsers = {};       // { userId: userRecord }
+let SelectedUserId = null;
+const ONLINE_WINDOW_MS = 90 * 1000; // presence heartbeat writes every 30s from index.html
+function isOnline(lastSeen) {
+  return typeof lastSeen === "number" && (Date.now() - lastSeen) < ONLINE_WINDOW_MS;
+}
+function formatLastSeen(lastSeen) {
+  if (typeof lastSeen !== "number") return "never seen";
+  const diffMs = Date.now() - lastSeen;
+  if (diffMs < ONLINE_WINDOW_MS) return "online now";
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+let SearchTerm = "";
+
+/* ---------- warp background (visual parity with index.html) ---------- */
+(function initWarpField() {
+  const canvas = document.getElementById("warp-bg");
+  if (!canvas || !canvas.getContext) return;
+  const ctx = canvas.getContext("2d");
+  let w, h, cx, cy;
+  const STAR_COUNT = 120;
+  const stars = [];
+  function resize() { w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight; cx = w / 2; cy = h / 2; }
+  function makeStar() { return { x: (Math.random() - 0.5) * w, y: (Math.random() - 0.5) * h, z: Math.random() * w }; }
+  function reset() { stars.length = 0; for (let i = 0; i < STAR_COUNT; i++) stars.push(makeStar()); }
+  resize(); reset();
+  window.addEventListener("resize", resize);
+  function tick() {
+    ctx.fillStyle = "rgba(5, 8, 17, 0.35)";
+    ctx.fillRect(0, 0, w, h);
+    for (const s of stars) {
+      s.z -= 1.4;
+      if (s.z <= 1) { s.x = (Math.random() - 0.5) * w; s.y = (Math.random() - 0.5) * h; s.z = w; }
+      const k = 140 / s.z;
+      const px = cx + s.x * k, py = cy + s.y * k;
+      if (px < 0 || px > w || py < 0 || py > h) continue;
+      const size = Math.max(0.4, (1 - s.z / w) * 2.2);
+      const alpha = Math.min(1, (1 - s.z / w) * 1.2);
+      ctx.beginPath();
+      ctx.fillStyle = `rgba(197, 139, 255, ${alpha * 0.7})`;
+      ctx.arc(px, py, size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+})();
+
+const els = {
+  loginGate: document.getElementById("login-gate"),
+  loginUsername: document.getElementById("login-username"),
+  loginPassword: document.getElementById("login-password"),
+  loginBtn: document.getElementById("login-btn"),
+  loginError: document.getElementById("login-error"),
+  consoleRoot: document.getElementById("console-root"),
+  identityName: document.getElementById("identity-name"),
+  identityTrait: document.getElementById("identity-trait"),
+  searchInput: document.getElementById("search-input"),
+  incarnationList: document.getElementById("incarnation-list"),
+  onlineCount: document.getElementById("online-count"),
+  detailEmpty: document.getElementById("detail-empty"),
+  detailBody: document.getElementById("detail-body"),
+  dName: document.getElementById("d-name"),
+  dSponsorLine: document.getElementById("d-sponsor-line"),
+  dCoins: document.getElementById("d-coins"),
+  dFavor: document.getElementById("d-favor"),
+  dKarma: document.getElementById("d-karma"),
+  dMental: document.getElementById("d-mental"),
+  dStats: document.getElementById("d-stats"),
+  dScenarios: document.getElementById("d-scenarios"),
+  dInventory: document.getElementById("d-inventory"),
+  dChoiceLog: document.getElementById("d-choicelog"),
+  rewardCoins: document.getElementById("reward-coins"),
+  rewardFavor: document.getElementById("reward-favor"),
+  rewardMessage: document.getElementById("reward-message"),
+  sendBtn: document.getElementById("send-transmission-btn"),
+  sponsorArea: document.getElementById("sponsor-action-area"),
+  status: document.getElementById("console-status"),
+  constellationsPanel: document.getElementById("constellations-panel"),
+  manageAccountsToggle: document.getElementById("manage-accounts-toggle"),
+  constellationsList: document.getElementById("constellations-list"),
+  conNewName: document.getElementById("con-new-name"),
+  conNewTrait: document.getElementById("con-new-trait"),
+  conNewUsername: document.getElementById("con-new-username"),
+  conNewPassword: document.getElementById("con-new-password"),
+  conNewEvernight: document.getElementById("con-new-evernight"),
+  conCreateBtn: document.getElementById("con-create-btn"),
+  constellationsStatus: document.getElementById("constellations-status"),
+  saveToast: document.getElementById("save-toast"),
+};
+
+function showStatus(kind, msg) {
+  els.status.className = `console-status show ${kind}`;
+  els.status.textContent = msg;
+  setTimeout(() => { els.status.className = "console-status"; }, 4000);
+}
+
+/* ---------- login gate ----------
+   Direct DB check: look up the username in ConstellationUsernameIndex,
+   load the Constellations/{key} record it points to, and compare a
+   salted SHA-256 hash of the entered password against the stored one —
+   the exact same pattern index.html uses for player logins. No Firebase
+   Auth account is created or signed into for this; the anonymous session
+   up top is only there to satisfy the DB's `auth != null` rule. See
+   SETUP.md for how to bootstrap the very first Evernight record by hand. */
+let AuthFlowHandled = false; // set the moment a login attempt or restore starts, so the two paths never double-run
+
+/* Migration (and the anonymous auth it depends on) must finish before any
+   login attempt or session restore reads from Constellations/*. */
+const MigrationReady = (async () => {
+  await AnonymousReady;
+  try {
+    await migrateAdminsToConstellations();
+  } catch (err) {
+    console.warn("Constellation migration check failed:", err.message);
+  }
+})();
+
+async function attemptLogin() {
+  const username = els.loginUsername.value.trim();
+  const password = els.loginPassword.value;
+  els.loginError.classList.remove("show");
+  els.loginBtn.disabled = true;
+  try {
+    AuthFlowHandled = true;
+    await MigrationReady;
+    const found = await findConstellationByUsername(username);
+    if (!found) {
+      const err = new Error("Not a Constellation account");
+      err.code = "NOT_FOUND";
+      throw err;
+    }
+    const { key, record } = found;
+    const attemptHash = await hashPassword(password, record.salt);
+    if (attemptHash !== record.passwordHash) {
+      const err = new Error("Incorrect password");
+      err.code = "WRONG_PASSWORD";
+      throw err;
+    }
+    await enterAsConstellation(key);
+  } catch (err) {
+    console.error(err);
+    els.loginError.textContent = loginErrorMessage(err);
+    els.loginError.classList.add("show");
+    AuthFlowHandled = false;
+  } finally {
+    els.loginBtn.disabled = false;
+  }
+}
+function loginErrorMessage(err) {
+  if (err && err.code === "NOT_FOUND") return "That account isn't on the Constellation roster.";
+  if (err && err.code === "WRONG_PASSWORD") return "Incorrect username or password.";
+  return "Incorrect username or password, or this account isn't a Constellation.";
+}
+
+/* Shared by both the manual login click and session-restore on reload.
+   Signing in and "viewing" an identity are the same step now — there's
+   no separate persona picker, and no distinct Evernight roster switch. */
+async function enterAsConstellation(key) {
+  await loadConstellationRegistry(); // full roster, fresh — needed either way for names/traits
+  syncPublicConstellationCatalog(); // best-effort, don't block sign-in on it
+  if (!CONSTELLATIONS[key]) {
+    const err = new Error("Constellation record missing");
+    err.code = "NOT_FOUND";
+    throw err;
+  }
+  setStoredConstellationSession(key);
+  await enterConsole(key);
+}
+
+els.loginBtn.addEventListener("click", attemptLogin);
+els.loginPassword.addEventListener("keydown", (e) => { if (e.key === "Enter") attemptLogin(); });
+
+/* ---------- session persistence ----------
+   No Firebase Auth session to piggyback on, so the logged-in
+   Constellation's key is kept in localStorage, same approach as
+   index.html's player session. */
+function setStoredConstellationSession(key) {
+  localStorage.setItem("orv_constellation_key", key);
+}
+function getStoredConstellationSession() {
+  return localStorage.getItem("orv_constellation_key");
+}
+function clearStoredConstellationSession() {
+  localStorage.removeItem("orv_constellation_key");
+}
+
+async function enterConsole(key) {
+  CurrentConstellationKey = key;
+  CurrentIsEvernight = !!CONSTELLATIONS[key]?.evernight;
+  const c = CONSTELLATIONS[key];
+  els.identityName.textContent = c.name;
+  els.identityTrait.textContent = c.trait || "";
+  document.querySelector(".identity-badge").classList.toggle("evernight", CurrentIsEvernight);
+  els.loginGate.classList.add("hidden");
+  els.consoleRoot.classList.remove("hidden");
+
+  // Collapsed by default — this session is almost always spent working the
+  // Incarnations list, so the (large) account-management panel stays out of
+  // the way until explicitly opened via the toggle.
+  ManageAccountsOpen = false;
+  els.manageAccountsToggle.classList.toggle("hidden", !CurrentIsEvernight);
+  els.constellationsPanel.classList.add("hidden");
+  if (CurrentIsEvernight) {
+    renderConstellationsPanel();
+  }
+  await refreshIncarnationList();
+  initGlobalChat();
+}
+
+let ManageAccountsOpen = false;
+els.manageAccountsToggle?.addEventListener("click", () => {
+  ManageAccountsOpen = !ManageAccountsOpen;
+  els.constellationsPanel.classList.toggle("hidden", !ManageAccountsOpen);
+  els.manageAccountsToggle.textContent = ManageAccountsOpen ? "☾ Manage Accounts ▲" : "☾ Manage Accounts ▾";
+  if (ManageAccountsOpen) {
+    els.constellationsPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+});
+
+/* ---------- constellation registry (Evernight-only) ----------
+   One record per Constellation now — name/trait/username/password/
+   evernight all live and save together. A row with no username is a
+   background-only Constellation: it can still sponsor Incarnations and
+   show up in the Stream, nobody can just sign in as it. */
+function slugify(base) {
+  const clean = (base || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  let slug = clean || "account";
+  let n = 2;
+  while (CONSTELLATIONS[slug]) slug = `${clean || "account"}-${n++}`;
+  return slug;
+}
+
+function showConsStatus(kind, msg) {
+  els.constellationsStatus.className = `console-status show ${kind}`;
+  els.constellationsStatus.textContent = msg;
+  setTimeout(() => { els.constellationsStatus.className = "console-status"; }, 4000);
+}
+
+/* Top-of-screen toast — unlike .console-status (which lives at the bottom
+   of a long, scrollable panel and is easy to miss), this is fixed to the
+   viewport so a save/error is impossible to miss no matter how far down
+   the row being edited is. */
+let SaveToastTimer = null;
+function showSaveToast(msg, kind = "ok") {
+  if (!els.saveToast) return;
+  clearTimeout(SaveToastTimer);
+  els.saveToast.textContent = msg;
+  els.saveToast.className = kind === "error" ? "show error" : "show";
+  SaveToastTimer = setTimeout(() => { els.saveToast.className = ""; }, 3000);
+}
+
+/* Turns a Save button green with a checkmark for 3s after a successful save. */
+function flashSaveButton(btn) {
+  if (!btn) return;
+  const original = btn.textContent;
+  btn.classList.add("save-success");
+  btn.textContent = "Saved ✓";
+  setTimeout(() => {
+    btn.classList.remove("save-success");
+    btn.textContent = original;
+  }, 3000);
+}
+
+function renderConstellationsPanel() {
+  els.constellationsList.innerHTML = "";
+  const entries = Object.entries(CONSTELLATIONS).sort((a, b) => a[1].name.localeCompare(b[1].name));
+  if (entries.length === 0) {
+    els.constellationsList.innerHTML = `<div class="list-empty">No Constellations yet.</div>`;
+    return;
+  }
+
+  entries.forEach(([key, c]) => {
+    const isSelf = key === CurrentConstellationKey;
+    const row = document.createElement("div");
+    row.className = "constellation-row";
+    row.dataset.key = key;
+    row.innerHTML = `
+      <div class="constellation-row-head">
+        <span class="constellation-row-name">${c.name}${isSelf ? '<span class="constellation-row-self">(you)</span>' : ""}</span>
+      </div>
+      <div class="field"><label>Name</label><input type="text" class="con-name" value="${c.name.replace(/"/g, "&quot;")}"></div>
+      <div class="field"><label>Trait</label><input type="text" class="con-trait" value="${(c.trait || "").replace(/"/g, "&quot;")}"></div>
+      <div class="field"><label>Username</label><input type="text" class="con-username" value="${(c.username || "").replace(/"/g, "&quot;")}" placeholder="blank = background-only"></div>
+      <div class="field checkbox-field">
+        <input type="checkbox" class="con-evernight-toggle" ${c.evernight ? "checked" : ""}>
+        <label>Evernight perms (full roster + account management)</label>
+      </div>
+      <div class="field">
+        <label>${c.username ? "Reset Password" : "Set Password"}</label>
+        <input type="password" class="con-new-pw" placeholder="${c.username ? "Leave blank to keep current" : "Required to set a username"}">
+      </div>
+      <div class="constellation-row-actions">
+        <button class="switch-link con-save-btn">Save</button>
+        <button class="switch-link con-delete-btn danger-link" ${isSelf ? "disabled title=\"Can't delete the Constellation you're signed in as\"" : ""}>Delete</button>
+      </div>
+    `;
+
+    row.querySelector(".con-save-btn").addEventListener("click", async () => {
+      const newName = row.querySelector(".con-name").value.trim() || c.name;
+      const newTrait = row.querySelector(".con-trait").value.trim();
+      const newUsernameRaw = row.querySelector(".con-username").value.trim();
+      const evernightChecked = row.querySelector(".con-evernight-toggle").checked;
+      const newPw = row.querySelector(".con-new-pw").value;
+
+      if (isSelf && !evernightChecked) {
+        const proceed = confirm("This removes your own Evernight perms. You'll be locked out of Constellation management the next time you sign in. Continue?");
+        if (!proceed) return;
+      }
+
+      const hadUsername = !!c.username;
+      const settingUsername = !!newUsernameRaw;
+      if (settingUsername && !hadUsername && !newPw) {
+        showConsStatus("error", "Set a password when giving this Constellation a username for the first time.");
+        return;
+      }
+
+      try {
+        const normalizedOld = hadUsername ? normalizeUsername(c.username) : null;
+        const normalizedNew = settingUsername ? normalizeUsername(newUsernameRaw) : null;
+
+        if (settingUsername && normalizedNew !== normalizedOld) {
+          const existingKey = await dbGet(`${USERNAME_INDEX_PATH}/${normalizedNew}`);
+          if (existingKey && existingKey !== key) {
+            showConsStatus("error", "That username is already taken.");
+            return;
+          }
+        }
+
+        const updated = { ...c, name: newName, trait: newTrait, evernight: evernightChecked };
+        if (settingUsername) {
+          updated.username = newUsernameRaw;
+          if (newPw) {
+            const salt = randomSalt();
+            updated.salt = salt;
+            updated.passwordHash = await hashPassword(newPw, salt);
+          }
+        } else {
+          delete updated.username;
+          delete updated.passwordHash;
+          delete updated.salt;
+        }
+
+        await dbPut(`Constellations/${key}`, updated);
+        if (normalizedOld && normalizedOld !== normalizedNew) await dbDelete(`${USERNAME_INDEX_PATH}/${normalizedOld}`);
+        if (normalizedNew) await dbPut(`${USERNAME_INDEX_PATH}/${normalizedNew}`, key);
+
+        CONSTELLATIONS[key] = updated;
+        if (key === CurrentConstellationKey) {
+          els.identityName.textContent = updated.name;
+          els.identityTrait.textContent = updated.trait || "";
+          CurrentIsEvernight = evernightChecked;
+        }
+        showConsStatus("ok", `Saved ${updated.name}.`);
+        showSaveToast(`${updated.name} has been updated!`, "ok");
+        renderConstellationsPanel();
+        // renderConstellationsPanel() just rebuilt every row from scratch (it re-sorts
+        // by name), so the button we clicked no longer exists — re-find this row by its
+        // stable data-key and flash *that* button instead of the stale reference.
+        const freshBtn = els.constellationsList.querySelector(
+          `.constellation-row[data-key="${CSS.escape(key)}"] .con-save-btn`
+        );
+        flashSaveButton(freshBtn);
+        await refreshIncarnationList();
+        syncPublicConstellationCatalog();
+      } catch (err) {
+        showConsStatus("error", `Failed to save: ${err.message}`);
+        showSaveToast(`Failed to save: ${err.message}`, "error");
+        console.error("Constellation save failed:", err);
+      }
+    });
+
+    row.querySelector(".con-delete-btn").addEventListener("click", async () => {
+      if (isSelf) return;
+      if (!confirm(`Delete Constellation "${c.name}"? This removes its identity and login entirely — any Incarnation it's sponsoring will show an unrecognized sponsor. This cannot be undone.`)) return;
+      try {
+        await dbDelete(`Constellations/${key}`);
+        if (c.username) await dbDelete(`${USERNAME_INDEX_PATH}/${normalizeUsername(c.username)}`);
+        delete CONSTELLATIONS[key];
+        showConsStatus("ok", `Deleted ${c.name}.`);
+        renderConstellationsPanel();
+        syncPublicConstellationCatalog();
+      } catch (err) {
+        showConsStatus("error", `Failed to delete: ${err.message}`);
+      }
+    });
+
+    els.constellationsList.appendChild(row);
+  });
+}
+
+els.conCreateBtn?.addEventListener("click", async () => {
+  const name = els.conNewName.value.trim();
+  const trait = els.conNewTrait.value.trim();
+  const username = els.conNewUsername.value.trim();
+  const password = els.conNewPassword.value;
+  const evernight = els.conNewEvernight.checked;
+
+  if (!name) {
+    showConsStatus("error", "Name is required.");
+    return;
+  }
+  if (username && !password) {
+    showConsStatus("error", "Set a password when giving this Constellation a username.");
+    return;
+  }
+
+  const key = slugify(name);
+  els.conCreateBtn.disabled = true;
+  try {
+    const record = { name, trait, evernight, createdAt: Date.now() };
+    if (username) {
+      const normalized = normalizeUsername(username);
+      const existingKey = await dbGet(`${USERNAME_INDEX_PATH}/${normalized}`);
+      if (existingKey) {
+        showConsStatus("error", "That username is already taken.");
+        return;
+      }
+      const salt = randomSalt();
+      record.username = username;
+      record.salt = salt;
+      record.passwordHash = await hashPassword(password, salt);
+      await dbPut(`Constellations/${key}`, record);
+      await dbPut(`${USERNAME_INDEX_PATH}/${normalized}`, key);
+    } else {
+      await dbPut(`Constellations/${key}`, record);
+    }
+    CONSTELLATIONS[key] = record;
+    els.conNewName.value = "";
+    els.conNewTrait.value = "";
+    els.conNewUsername.value = "";
+    els.conNewPassword.value = "";
+    els.conNewEvernight.checked = false;
+    renderConstellationsPanel();
+    showConsStatus("ok", `Created ${name}.`);
+    await refreshIncarnationList();
+    syncPublicConstellationCatalog();
+  } catch (err) {
+    showConsStatus("error", `Failed to create: ${err.message}`);
+  } finally {
+    els.conCreateBtn.disabled = false;
+  }
+});
+
+/* ---------- incarnation list ---------- */
+async function refreshIncarnationList() {
+  els.incarnationList.innerHTML = `<div class="list-empty">Loading Incarnations…</div>`;
+  try {
+    const users = await dbGet("Users");
+    AllUsers = {};
+    if (users && typeof users === "object") {
+      for (const [id, record] of Object.entries(users)) {
+        if (!record || !record.Account) continue; // skip the _meta placeholder
+        AllUsers[id] = record;
+      }
+    }
+    renderIncarnationList();
+  } catch (err) {
+    els.incarnationList.innerHTML = `<div class="list-empty">Failed to load: ${err.message}</div>`;
+  }
+}
+
+function renderIncarnationList() {
+  els.incarnationList.innerHTML = "";
+  const term = SearchTerm.trim().toLowerCase();
+  let entries = Object.entries(AllUsers).filter(([id, u]) =>
+    !term || (u.Account.username || "").toLowerCase().includes(term)
+  );
+
+  const onlineTotal = Object.values(AllUsers).filter(u => isOnline(u.Presence?.lastSeen)).length;
+  if (els.onlineCount) {
+    els.onlineCount.textContent = Object.keys(AllUsers).length
+      ? `${onlineTotal} online / ${Object.keys(AllUsers).length} total`
+      : "";
+  }
+
+  // Pin: any Incarnation sponsored by the currently-active Constellation
+  // floats to the very top of the list.
+  entries.sort((a, b) => {
+    const aMine = (a[1].Player?.sponsorConstellation === CurrentConstellationKey) ? 1 : 0;
+    const bMine = (b[1].Player?.sponsorConstellation === CurrentConstellationKey) ? 1 : 0;
+    if (aMine !== bMine) return bMine - aMine;
+    return (a[1].Account.username || "").localeCompare(b[1].Account.username || "");
+  });
+
+  if (entries.length === 0) {
+    els.incarnationList.innerHTML = `<div class="list-empty">No Incarnations match.</div>`;
+    return;
+  }
+
+  entries.forEach(([id, u]) => {
+    const player = u.Player || {};
+    const progress = u.Progress || {};
+    const sponsor = player.sponsorConstellation;
+    const isMine = sponsor === CurrentConstellationKey;
+    const asEvernight = isMine && !!CONSTELLATIONS[CurrentConstellationKey]?.evernight;
+    const card = document.createElement("div");
+    card.className = `incarnation-card ${id === SelectedUserId ? "selected" : ""} ${isMine ? "pinned" : ""} ${asEvernight ? "evernight-pinned" : ""}`;
+    const clearedCount = Array.isArray(progress.scenariosCleared) ? progress.scenariosCleared.length : 0;
+    let badges = "";
+    if (asEvernight) badges += `<span class="ic-badge evernight">☾ Your Sponsor</span>`;
+    else if (isMine) badges += `<span class="ic-badge mine">★ Your Sponsor</span>`;
+    else if (sponsor && CONSTELLATIONS[sponsor]) badges += `<span class="ic-badge">Sponsored</span>`;
+    const online = isOnline(u.Presence?.lastSeen);
+    card.innerHTML = `
+      <div>
+        <div class="ic-name">
+          <span class="presence-dot ${online ? "on" : "off"}" title="${formatLastSeen(u.Presence?.lastSeen)}"></span>
+          ${u.Account.username}
+        </div>
+        <div class="ic-meta">${(player.coins || 0).toLocaleString()} 🪙 · ${clearedCount}/4 Scenarios Cleared · ${formatLastSeen(u.Presence?.lastSeen)}</div>
+      </div>
+      <div class="ic-badges">${badges}</div>
+    `;
+    card.addEventListener("click", () => selectIncarnation(id));
+    els.incarnationList.appendChild(card);
+  });
+}
+
+els.searchInput.addEventListener("input", (e) => {
+  SearchTerm = e.target.value;
+  renderIncarnationList();
+});
+
+/* =========================================================================
+   DIRECT MESSAGE CHAT — Constellation <-> Incarnation, personal DMs
+   =========================================================================
+   Ephemeral Transport Pipe (95%+ storage savings): Firebase RTDB is used
+   only as a temporary delivery relay, never as the conversation's storage.
+   A message is pushed to ORV/DMRelay/{convId}, and the moment the OTHER
+   side's client receives it (via onChildAdded — which fires for existing
+   backlog too, so offline delivery still works) it writes the message into
+   its own IndexedDB and immediately .remove()'s the RTDB node. Steady-state,
+   the relay holds only messages that are actually in flight to someone who
+   hasn't opened the thread yet — not the whole history of every chat.
+
+   Schema key encoding shrinks every message on the wire:
+     s   -> sender: "c" (Constellation side) or "u" (Incarnation side)
+     m   -> free-text body (freeform messages)
+     t   -> timestamp, ms
+     tid -> template id (templated Constellation dialogue, replaces m)
+     p   -> template params array (paired with tid)
+
+   Template-based NPC dialogue: instead of sending a full sentence, the
+   Constellation side can send {tid:"SPONSOR_OFFER", p:[500]} — a few bytes
+   — and the receiving client renders the actual text locally from
+   DM_TEMPLATES. Same trick game engines use for "line packs" instead of
+   shipping full VO/text strings per event.
+   ========================================================================= */
+
+/* Two dictionaries, one per sender direction — kept in sync with the
+   matching PLAYER_DM_TEMPLATES / CONSTELLATION_DM_TEMPLATES pair in
+   index.html so a templated line decodes to the same text on both sides. */
+const CONSTELLATION_DM_TEMPLATES = {
+  SPONSOR_OFFER:    (p) => `considers offering you ${p[0]} coins in exchange for your next choice.`,
+  SPONSOR_WITHDRAW: () => `withdraws its sponsorship offer.`,
+  GREETING:         () => `is watching. Impress it.`,
+  WARNING:          (p) => `warns you: "${p[0]}"`,
+  PRAISE:           (p) => `is pleased with your performance in ${p[0]}.`,
+  DISAPPOINTED:     (p) => `is disappointed by your choice in ${p[0]}.`,
+  SILENCE:          () => `has gone quiet, watching without comment.`
+};
+const PLAYER_DM_TEMPLATES = {
+  GREETING: () => `bows toward the Stream, awaiting your judgment.`,
+  THANKS:   () => `offers heartfelt thanks for your generosity.`,
+  PLEA:     () => `pleads for your favor in the trial ahead.`,
+  APOLOGY:  (p) => `apologizes: "${p[0]}"`
+};
+function renderDmTemplate(sender, tid, p) {
+  const dict = sender === "user" ? PLAYER_DM_TEMPLATES : CONSTELLATION_DM_TEMPLATES;
+  const fn = dict[tid];
+  return fn ? fn(Array.isArray(p) ? p : []) : `sends an unrecognized signal (${tid}).`;
+}
+function dmConvId(userId, constellationKey) {
+  return `${userId}__${constellationKey}`;
+}
+
+/* ---------- local cache (IndexedDB) — this is where history actually lives ---------- */
+const DM_DB_NAME = "orv_dm_cache";
+const DM_STORE = "messages";
+let dmDbPromise = null;
+function openDmDb() {
+  if (dmDbPromise) return dmDbPromise;
+  dmDbPromise = new Promise((resolve, reject) => {
+    const req = indexedDB.open(DM_DB_NAME, 1);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(DM_STORE)) {
+        const store = db.createObjectStore(DM_STORE, { keyPath: "id", autoIncrement: true });
+        store.createIndex("byConv", "convId", { unique: false });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+  return dmDbPromise;
+}
+async function cacheDmMessage(convId, msg) {
+  const db = await openDmDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(DM_STORE, "readwrite");
+    const req = tx.objectStore(DM_STORE).add({ convId, ...msg });
+    req.onsuccess = () => { msg.id = req.result; };
+    tx.oncomplete = () => resolve(msg.id);
+    tx.onerror = () => reject(tx.error);
+  });
+}
+async function deleteDmMessage(id) {
+  const db = await openDmDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(DM_STORE, "readwrite");
+    tx.objectStore(DM_STORE).delete(id);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+async function getDmHistory(convId) {
+  const db = await openDmDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(DM_STORE, "readonly");
+    const idx = tx.objectStore(DM_STORE).index("byConv");
+    const out = [];
+    idx.openCursor(IDBKeyRange.only(convId)).onsuccess = (e) => {
+      const cursor = e.target.result;
+      if (cursor) { out.push(cursor.value); cursor.continue(); }
+      else resolve(out.sort((a, b) => a.t - b.t));
+    };
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+/* ---------- live relay ---------- */
+let ActiveDmConvId = null;
+let ActiveDmListenerRef = null;
+function detachDmListener() {
+  if (ActiveDmListenerRef) {
+    off(ActiveDmListenerRef);
+    ActiveDmListenerRef = null;
+  }
+  ActiveDmConvId = null;
+}
+async function attachDmListener(convId, onIncoming) {
+  detachDmListener();
+  await AnonymousReady;
+  ActiveDmConvId = convId;
+  const relayRef = ref(rtdb, `ORV/DMRelay/${convId}`);
+  ActiveDmListenerRef = relayRef;
+  onChildAdded(relayRef, async (snap) => {
+    const raw = snap.val();
+    if (!raw || typeof raw !== "object") { remove(snap.ref).catch(() => {}); return; }
+    const sender = raw.s === "c" ? "constellation" : "user";
+    const msg = {
+      sender,
+      text: raw.tid ? renderDmTemplate(sender, raw.tid, raw.p) : (raw.m || ""),
+      t: raw.t || Date.now()
+    };
+    try { await cacheDmMessage(convId, msg); } catch (err) { console.warn("DM cache write failed:", err.message); }
+    remove(snap.ref).catch((err) => console.warn("DM relay cleanup failed:", err.message));
+    // Ignore anything that arrives for a conversation the user has since
+    // navigated away from (listener detach is async-ish in practice).
+    if (convId === ActiveDmConvId) onIncoming(msg);
+  });
+}
+
+async function sendDmMessage(convId, { text, tid, p } = {}) {
+  await AnonymousReady;
+  const payload = { s: "c", t: Date.now() };
+  if (tid) { payload.tid = tid; payload.p = p || []; }
+  else payload.m = text;
+  await push(ref(rtdb, `ORV/DMRelay/${convId}`), payload);
+  // Optimistic local echo: the sender caches its own message immediately
+  // rather than waiting on a relay round-trip to see what it just sent.
+  const localMsg = { sender: "constellation", text: tid ? renderDmTemplate("constellation", tid, p) : text, t: payload.t };
+  await cacheDmMessage(convId, localMsg);
+  return localMsg;
+}
+
+/* ---------- AI tone translation ----------
+   Mirrors the same feature in index.html — see that file's comment for
+   the full design writeup and the client-side-API-key caveat. Requires
+   window.AI_CONFIG = { apiKey, model? } in this page's config.js. */
+async function translateToOrvTone(rawText, speakerRole) {
+  if (!rawText || !rawText.trim()) return rawText;
+  if (!window.AI_CONFIG?.apiKey) {
+    console.warn("AI_CONFIG.apiKey missing in config.js — sending message untranslated.");
+    return rawText;
+  }
+  const voice = speakerRole === "constellation"
+    ? "a Constellation from Omniscient Reader's Viewpoint speaking down to their Incarnation through the Star Stream: grand, portentous, faintly archaic, addressing them as 'Incarnation' or by title, never modern slang"
+    : "an Incarnation of the Star Stream speaking to a Constellation who sponsors them: reverent, urgent, a little desperate, aware they are being watched and judged";
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": window.AI_CONFIG.apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true"
+      },
+      body: JSON.stringify({
+        model: window.AI_CONFIG.model || "claude-sonnet-4-6",
+        max_tokens: 200,
+        system: `Rewrite the user's message in the voice of ${voice}. Preserve the meaning and intent exactly — do not add new claims, offers, or numbers that weren't implied. 1-3 sentences. Return ONLY the rewritten line, no preamble, no quotation marks around the whole thing.`,
+        messages: [{ role: "user", content: rawText }]
+      })
+    });
+    if (!res.ok) throw new Error(`AI translate failed (${res.status})`);
+    const data = await res.json();
+    const block = Array.isArray(data.content) ? data.content.find(b => b.type === "text") : null;
+    if (!block?.text?.trim()) throw new Error("AI translate returned no text");
+    return block.text.trim();
+  } catch (err) {
+    console.warn("AI translate failed, sending original text:", err.message);
+    return rawText;
+  }
+}
+
+/* ---------- DM UI ---------- */
+const dmEls = {
+  thread: document.getElementById("dm-thread"),
+  input: document.getElementById("dm-input"),
+  sendBtn: document.getElementById("dm-send-btn"),
+  aiToggle: document.getElementById("dm-ai-toggle"),
+};
+function renderDmBubble(msg) {
+  const mine = msg.sender === "constellation";
+  const div = document.createElement("div");
+  div.className = `dm-bubble ${mine ? "mine" : "theirs"}`;
+  const time = msg.t ? new Date(msg.t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
+  div.innerHTML = `${escapeHtml(msg.text)}<span class="dm-time">${mine ? "You" : "Them"} · ${time}</span>`;
+  if (mine && msg.id != null) {
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "dm-del-btn";
+    del.title = "Delete message";
+    del.textContent = "✕";
+    del.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      try { await deleteDmMessage(msg.id); } catch (err) { console.warn("Failed to delete DM:", err.message); }
+      div.remove();
+      if (!dmEls.thread.querySelector(".dm-bubble")) {
+        dmEls.thread.innerHTML = `<div class="dm-empty">No messages yet — say something.</div>`;
+      }
+    });
+    div.appendChild(del);
+  }
+  return div;
+}
+function escapeHtml(s) {
+  const d = document.createElement("div");
+  d.textContent = s == null ? "" : String(s);
+  return d.innerHTML;
+}
+async function openDmThread(userId) {
+  const convId = dmConvId(userId, CurrentConstellationKey);
+  dmEls.thread.innerHTML = `<div class="dm-empty">Loading…</div>`;
+
+  const history = await getDmHistory(convId).catch(() => []);
+  renderDmThread(history);
+
+  await attachDmListener(convId, (msg) => {
+    if (SelectedUserId !== userId) return;
+    appendDmBubble(msg);
+  });
+}
+function renderDmThread(history) {
+  dmEls.thread.innerHTML = "";
+  if (history.length === 0) {
+    dmEls.thread.innerHTML = `<div class="dm-empty">No messages yet — say something.</div>`;
+    return;
+  }
+  history.forEach(m => dmEls.thread.appendChild(renderDmBubble(m)));
+  dmEls.thread.scrollTop = dmEls.thread.scrollHeight;
+}
+function appendDmBubble(msg) {
+  const wasEmpty = dmEls.thread.querySelector(".dm-empty");
+  if (wasEmpty) dmEls.thread.innerHTML = "";
+  dmEls.thread.appendChild(renderDmBubble(msg));
+  dmEls.thread.scrollTop = dmEls.thread.scrollHeight;
+}
+async function sendDm(userId, { text, tid, p } = {}) {
+  const convId = dmConvId(userId, CurrentConstellationKey);
+  try {
+    if (text && !tid && dmEls.aiToggle?.checked) {
+      text = await translateToOrvTone(text, "constellation");
+    }
+    const localMsg = await sendDmMessage(convId, { text, tid, p });
+    if (SelectedUserId === userId) appendDmBubble(localMsg);
+  } catch (err) {
+    showStatus("error", `DM failed to send: ${err.message}`);
+  }
+}
+dmEls.sendBtn.addEventListener("click", async () => {
+  if (!SelectedUserId) return;
+  const text = dmEls.input.value.trim();
+  if (!text) return;
+  dmEls.input.value = "";
+  const usingAi = !!dmEls.aiToggle?.checked;
+  if (usingAi) dmEls.sendBtn.disabled = true;
+  await sendDm(SelectedUserId, { text });
+  if (usingAi) dmEls.sendBtn.disabled = false;
+});
+dmEls.input.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") dmEls.sendBtn.click();
+});
+
+/* =========================================================================
+   GLOBAL CHAT — one shared room, every Incarnation and every Constellation
+   =========================================================================
+   Mirrors the module of the same name in index.html exactly — same
+   permanent RTDB path (ORV/GlobalChat/{pushId}, push id doubles as
+   message id for deletion), same "everyone reads the same live source,
+   no local cache" design. See index.html for the full writeup. */
+const gcEls = {
+  panel: document.getElementById("global-chat-panel"),
+  toggleBtn: document.getElementById("gc-toggle-btn"),
+  body: document.getElementById("global-chat-body"),
+  feed: document.getElementById("gc-feed"),
+  input: document.getElementById("gc-input"),
+  sendBtn: document.getElementById("gc-send-btn"),
+  aiToggle: document.getElementById("gc-ai-toggle"),
+};
+let GlobalChatRef = null;
+function detachGlobalChatListener() {
+  if (GlobalChatRef) { off(GlobalChatRef); GlobalChatRef = null; }
+}
+function renderGcBubble(id, entry) {
+  const mine = entry.role === "constellation" && entry.senderId === CurrentConstellationKey;
+  const div = document.createElement("div");
+  div.className = `gc-bubble ${mine ? "mine" : entry.role}`;
+  const time = entry.t ? new Date(entry.t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
+  const senderLabel = entry.role === "constellation" ? `⭐ ${entry.senderName || "A Constellation"}` : (entry.senderName || "An Incarnation");
+  div.innerHTML = `<span class="gc-sender">${escapeHtml(senderLabel)}</span>${escapeHtml(entry.text)}<span class="dm-time">${time}</span>`;
+  if (mine) {
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "dm-del-btn";
+    del.title = "Delete message";
+    del.textContent = "✕";
+    del.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      try { await remove(ref(rtdb, `ORV/GlobalChat/${id}`)); } catch (err) { console.warn("Failed to delete global chat message:", err.message); }
+      div.remove();
+    });
+    div.appendChild(del);
+  }
+  return div;
+}
+function appendGcBubble(id, entry) {
+  const wasEmpty = gcEls.feed.querySelector(".dm-empty");
+  if (wasEmpty) gcEls.feed.innerHTML = "";
+  gcEls.feed.appendChild(renderGcBubble(id, entry));
+  gcEls.feed.scrollTop = gcEls.feed.scrollHeight;
+}
+async function initGlobalChat() {
+  detachGlobalChatListener();
+  gcEls.feed.innerHTML = `<div class="dm-empty">Loading…</div>`;
+  await AnonymousReady;
+  const q = query(ref(rtdb, "ORV/GlobalChat"), limitToLast(60));
+  GlobalChatRef = q;
+  onChildAdded(q, (snap) => {
+    const entry = snap.val();
+    if (!entry || typeof entry !== "object") return;
+    appendGcBubble(snap.key, entry);
+  }, (err) => {
+    console.error("Global Chat read failed:", err.message);
+    gcEls.feed.innerHTML = `<div class="dm-empty">Couldn't load Global Chat — check that ORV/GlobalChat is allowed in database.rules.json. (${escapeHtml(err.message)})</div>`;
+  });
+  try {
+    const snap = await get(q);
+    if (!snap.exists() && gcEls.feed.querySelector(".dm-empty")) {
+      gcEls.feed.innerHTML = `<div class="dm-empty">No messages yet — say something!</div>`;
+    }
+  } catch (err) {
+    console.error("Global Chat read failed:", err.message);
+    gcEls.feed.innerHTML = `<div class="dm-empty">Couldn't load Global Chat — check that ORV/GlobalChat is allowed in database.rules.json. (${escapeHtml(err.message)})</div>`;
+  }
+}
+async function sendGlobalChat() {
+  let text = gcEls.input.value.trim();
+  if (!text || !CurrentConstellationKey) return;
+  gcEls.input.value = "";
+  if (gcEls.aiToggle?.checked) {
+    gcEls.sendBtn.disabled = true;
+    text = await translateToOrvTone(text, "constellation");
+    gcEls.sendBtn.disabled = false;
+  }
+  try {
+    await push(ref(rtdb, "ORV/GlobalChat"), {
+      role: "constellation",
+      senderId: CurrentConstellationKey,
+      senderName: CONSTELLATIONS[CurrentConstellationKey]?.name || CurrentConstellationKey,
+      text,
+      t: Date.now()
+    });
+  } catch (err) {
+    console.warn("Failed to send global chat message:", err.message);
+  }
+}
+gcEls.sendBtn.addEventListener("click", sendGlobalChat);
+gcEls.input.addEventListener("keydown", (e) => { if (e.key === "Enter") sendGlobalChat(); });
+gcEls.toggleBtn.addEventListener("click", () => {
+  const nowHidden = gcEls.body.classList.toggle("hidden");
+  gcEls.toggleBtn.classList.toggle("open", !nowHidden);
+  gcEls.toggleBtn.textContent = nowHidden ? "▸" : "▾";
+});
+
+/* ---------- detail panel ---------- */
+async function selectIncarnation(id) {
+  SelectedUserId = id;
+  renderIncarnationList();
+  els.detailEmpty.classList.add("hidden");
+  els.detailBody.classList.remove("hidden");
+  els.rewardCoins.value = 0;
+  els.rewardFavor.value = 0;
+  els.rewardMessage.value = "";
+  await renderDetail();
+  await openDmThread(id);
+}
+
+async function renderDetail() {
+  // Always pull a fresh copy of just this user so reward/sponsor actions
+  // never clobber something another admin tab or the live player wrote
+  // in between page loads.
+  let record;
+  try {
+    record = await dbGet(`Users/${SelectedUserId}`);
+  } catch (err) {
+    showStatus("error", `Failed to load Incarnation: ${err.message}`);
+    return;
+  }
+  if (!record) return;
+  // Merge rather than replace: the targeted single-record fetch below is
+  // what keeps reward/sponsor actions accurate against the very latest
+  // Player/Progress data, but Presence has shown eventual-consistency lag
+  // on this specific path in testing (fresh fetch briefly missing the
+  // latest heartbeat write). Falling back to the last known-good Presence
+  // from the bulk roster fetch avoids a false "offline" flash — we only
+  // ever use fresher Presence data when it's actually present, never
+  // regress to unknown.
+  const previousPresence = AllUsers[SelectedUserId]?.Presence;
+  if (!record.Presence && previousPresence) record.Presence = previousPresence;
+  AllUsers[SelectedUserId] = record;
+  renderIncarnationList(); // keep the roster card's dot/timestamp in sync too
+
+  const player = record.Player || {};
+  const progress = record.Progress || {};
+  const sponsor = player.sponsorConstellation;
+
+  const online = isOnline(record.Presence?.lastSeen);
+  els.dName.innerHTML = `<span class="presence-dot ${online ? "on" : "off"}"></span>${record.Account.username} <span style="font-size:0.65rem; font-weight:normal; color:rgba(224,247,252,0.5); text-transform:none; letter-spacing:0;">(${formatLastSeen(record.Presence?.lastSeen)})</span>`;
+  if (!sponsor) {
+    els.dSponsorLine.className = "detail-sponsor-line none";
+    els.dSponsorLine.textContent = "No sponsor Constellation.";
+  } else if (sponsor === CurrentConstellationKey) {
+    const isEvernight = !!CONSTELLATIONS[CurrentConstellationKey]?.evernight;
+    els.dSponsorLine.className = `detail-sponsor-line ${isEvernight ? "evernight" : "mine"}`;
+    els.dSponsorLine.textContent = `${isEvernight ? "☾" : "★"} Sponsored by you (${CONSTELLATIONS[sponsor]?.name || sponsor}).`;
+  } else {
+    els.dSponsorLine.className = "detail-sponsor-line other";
+    els.dSponsorLine.textContent = `Sponsored by ${CONSTELLATIONS[sponsor]?.name || sponsor}.`;
+  }
+
+  els.dCoins.textContent = (player.coins || 0).toLocaleString();
+  els.dFavor.textContent = player.favor || 0;
+  const k = player.karma || 0;
+  els.dKarma.textContent = `${k > 0 ? "+" : ""}${k}`;
+  els.dMental.textContent = player.mentalStability ?? 100;
+
+  els.dStats.innerHTML = "";
+  const stats = player.stats || {};
+  for (const stat of Object.keys(STAT_LABELS)) {
+    const row = document.createElement("div");
+    row.className = "attr-row-mini";
+    row.innerHTML = `<span>${STAT_LABELS[stat]}</span><span>Lv. ${stats[stat] || 1}</span>`;
+    els.dStats.appendChild(row);
+  }
+
+  els.dScenarios.innerHTML = "";
+  const cleared = Array.isArray(progress.scenariosCleared) ? progress.scenariosCleared : [];
+  if (cleared.length === 0) {
+    els.dScenarios.innerHTML = `<span class="chip">None cleared yet</span>`;
+  } else {
+    cleared.forEach(sid => {
+      const chip = document.createElement("span");
+      chip.className = "chip cleared";
+      chip.textContent = sid.replace("main_scenario_", "Scenario ");
+      els.dScenarios.appendChild(chip);
+    });
+  }
+
+  els.dInventory.innerHTML = "";
+  const inv = Array.isArray(player.inventory) ? player.inventory : [];
+  if (inv.length === 0) {
+    els.dInventory.innerHTML = `<span class="chip">Bag is empty</span>`;
+  } else {
+    inv.forEach(name => {
+      const chip = document.createElement("span");
+      chip.className = "chip";
+      chip.textContent = name;
+      els.dInventory.appendChild(chip);
+    });
+  }
+
+  await renderChoiceLog(SelectedUserId);
+  renderSponsorAction(sponsor);
+}
+
+async function renderChoiceLog(userId) {
+  els.dChoiceLog.innerHTML = `<div class="log-empty">Loading…</div>`;
+  try {
+    const log = await dbGet(`Users/${userId}/ChoiceLog`);
+    if (!log || typeof log !== "object") {
+      els.dChoiceLog.innerHTML = `<div class="log-empty">No choices logged yet.</div>`;
+      return;
+    }
+    const entries = Object.values(log).sort((a, b) => (b.ts || 0) - (a.ts || 0));
+    els.dChoiceLog.innerHTML = "";
+    entries.forEach(entry => {
+      const div = document.createElement("div");
+      div.className = "log-entry";
+      const time = entry.ts ? new Date(entry.ts).toLocaleString() : "";
+      const failTag = entry.requirementMet === false ? ` <span class="le-fail">(requirement not met)</span>` : "";
+      div.innerHTML = `
+        <div class="le-top"><span>${entry.scenarioTitle || entry.scenarioId || "Scenario"}</span><span>${time}</span></div>
+        <div class="le-choice">${entry.choiceLabel || "—"}${failTag}</div>
+      `;
+      els.dChoiceLog.appendChild(div);
+    });
+  } catch (err) {
+    els.dChoiceLog.innerHTML = `<div class="log-empty">Failed to load choice history: ${err.message}</div>`;
+  }
+}
+
+function renderSponsorAction(sponsor) {
+  els.sponsorArea.innerHTML = "";
+  const btn = document.createElement("button");
+  if (sponsor === CurrentConstellationKey) {
+    btn.className = "sponsor-btn revoke";
+    btn.textContent = "✕ Revoke Sponsorship";
+    btn.addEventListener("click", () => setSponsor(null));
+  } else {
+    btn.className = "sponsor-btn";
+    btn.textContent = "★ Sponsor This Incarnation";
+    btn.addEventListener("click", () => setSponsor(CurrentConstellationKey));
+  }
+  els.sponsorArea.appendChild(btn);
+}
+
+/* Each Constellation may sponsor at most one Incarnation, and each
+   Incarnation may have at most one sponsor Constellation — a true 1:1 pin.
+   Setting a new sponsor therefore has to clear this Constellation's OLD
+   sponsee (if any) as well as write the new one. We already hold the full
+   Users list from the sidebar fetch, so we can find that old sponsee
+   locally instead of a second indexed query. */
+async function setSponsor(newSponsorKeyOrNull) {
+  try {
+    if (newSponsorKeyOrNull) {
+      for (const [id, u] of Object.entries(AllUsers)) {
+        if (id !== SelectedUserId && u.Player?.sponsorConstellation === CurrentConstellationKey) {
+          await dbPut(`Users/${id}/Player/sponsorConstellation`, null);
+        }
+      }
+    }
+    await dbPut(`Users/${SelectedUserId}/Player/sponsorConstellation`, newSponsorKeyOrNull);
+
+    const cName = CONSTELLATIONS[CurrentConstellationKey].name;
+    const announceMsg = newSponsorKeyOrNull
+      ? "has chosen you as their Sponsored Incarnation. Your every move on the Stream now carries their name."
+      : "has withdrawn as your sponsor Constellation.";
+    await dbPush(`Users/${SelectedUserId}/ConstellationMessages`, {
+      ts: Date.now(),
+      constellationKey: CurrentConstellationKey,
+      name: cName,
+      message: announceMsg
+    });
+
+    showStatus("ok", newSponsorKeyOrNull ? "Sponsorship granted." : "Sponsorship revoked.");
+    await refreshIncarnationList();
+    await renderDetail();
+  } catch (err) {
+    showStatus("error", `Failed: ${err.message}`);
+  }
+}
+
+/* ---------- reward + message transmission ---------- */
+els.sendBtn.addEventListener("click", async () => {
+  if (!SelectedUserId) return;
+  const coins = Math.max(0, parseInt(els.rewardCoins.value, 10) || 0);
+  const favor = Math.max(0, parseInt(els.rewardFavor.value, 10) || 0);
+  const message = els.rewardMessage.value.trim();
+
+  if (!message && coins === 0 && favor === 0) {
+    showStatus("error", "Add a message, a coin reward, or a favor reward first.");
+    return;
+  }
+
+  els.sendBtn.disabled = true;
+  try {
+    if (coins > 0 || favor > 0) {
+      // Re-fetch just before writing so a reward never clobbers coin/favor
+      // changes the player made in their own session moments ago.
+      const fresh = await dbGet(`Users/${SelectedUserId}/Player`);
+      if (coins > 0) await dbPut(`Users/${SelectedUserId}/Player/coins`, (fresh?.coins || 0) + coins);
+      if (favor > 0) await dbPut(`Users/${SelectedUserId}/Player/favor`, (fresh?.favor || 0) + favor);
+    }
+
+    const cName = CONSTELLATIONS[CurrentConstellationKey].name;
+    await dbPush(`Users/${SelectedUserId}/ConstellationMessages`, {
+      ts: Date.now(),
+      constellationKey: CurrentConstellationKey,
+      name: cName,
+      message: message || "sends a reward without comment.",
+      rewardCoins: coins || null,
+      rewardFavor: favor || null
+    });
+
+    showStatus("ok", "Transmitted to the Incarnation's Constellation Stream Log.");
+    els.rewardCoins.value = 0;
+    els.rewardFavor.value = 0;
+    els.rewardMessage.value = "";
+    await refreshIncarnationList();
+    await renderDetail();
+  } catch (err) {
+    showStatus("error", `Transmission failed: ${err.message}`);
+  } finally {
+    els.sendBtn.disabled = false;
+  }
+});
+
+/* ---------- boot ---------- */
+/* No Firebase Auth session to restore — the logged-in Constellation's key
+   lives in localStorage (see setStoredConstellationSession above). On
+   load, re-fetch that Constellation's current record fresh from the DB
+   rather than trusting a cached copy, so a permission change (evernight
+   toggled) or account deletion takes effect immediately on refresh. */
+(async function restoreConstellationSession() {
+  const storedKey = getStoredConstellationSession();
+  if (!storedKey || AuthFlowHandled) return;
+  AuthFlowHandled = true;
+  try {
+    await MigrationReady;
+    const record = await dbGet(`Constellations/${storedKey}`);
+    if (!record || !record.username) {
+      clearStoredConstellationSession();
+      return;
+    }
+    await enterAsConstellation(storedKey);
+  } catch (err) {
+    console.warn("Could not restore Constellation session:", err.message);
+    AuthFlowHandled = false;
+  }
+})();
+
+/* ---------- sign out ---------- */
+document.getElementById("admin-logout-btn")?.addEventListener("click", () => {
+  detachDmListener();
+  detachGlobalChatListener();
+  clearStoredConstellationSession();
+  AuthFlowHandled = false;
+  CurrentConstellationKey = null;
+  CurrentIsEvernight = false;
+  ManageAccountsOpen = false;
+  SelectedUserId = null;
+  els.manageAccountsToggle.textContent = "☾ Manage Accounts ▾";
+  els.manageAccountsToggle.classList.add("hidden");
+  els.consoleRoot.classList.add("hidden");
+  els.loginGate.classList.remove("hidden");
+  els.loginUsername.value = "";
+  els.loginPassword.value = "";
+});
+</script>
+</body>
+</html>
