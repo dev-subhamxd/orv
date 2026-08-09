@@ -1,0 +1,1118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project ORV — Constellation Console</title>
+<style>
+:root {
+  --ss-cyan-primary: #00f0ff;
+  --ss-cyan-glow: rgba(0, 240, 255, 0.4);
+  --ss-bg-dark: rgba(10, 15, 25, 0.9);
+  --ss-border-cyan: #00a8ff;
+  --ss-gold-accent: #ffd700;
+  --ss-text-light: #e0f7fc;
+  --ss-red-error: #ff4d5e;
+  --ss-green-ok: #37ffab;
+  --ss-purple-accent: #c58bff;
+  --ss-font-main: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+body.star-stream-theme {
+  background: radial-gradient(circle at 50% 20%, #0c1424 0%, #050811 65%);
+  color: var(--ss-text-light);
+  font-family: var(--ss-font-main);
+  margin: 0;
+  min-height: 100vh;
+  padding: 20px 14px 60px;
+}
+body.star-stream-theme::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0,240,255,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,240,255,0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+#warp-bg { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; display: block; background: transparent; }
+
+.console-frame { position: relative; z-index: 1; max-width: 900px; margin: 0 auto; }
+.channel-tag {
+  text-align: center; font-size: 0.75rem; letter-spacing: 0.15em; text-transform: uppercase;
+  color: var(--ss-purple-accent); opacity: 0.85; margin-bottom: 4px;
+}
+.console-title {
+  text-align: center; font-size: 1.3rem; font-weight: bold; color: var(--ss-text-light);
+  margin: 0 0 16px;
+}
+.console-title span { color: var(--ss-purple-accent); }
+
+.system-window {
+  background: var(--ss-bg-dark);
+  border: 1px solid var(--ss-border-cyan);
+  box-shadow: 0 0 25px var(--ss-cyan-glow), inset 0 0 40px rgba(0,240,255,0.03);
+  backdrop-filter: blur(10px);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+.window-header {
+  background: linear-gradient(90deg, rgba(197,139,255,0.22), transparent);
+  color: var(--ss-purple-accent);
+  padding: 10px 16px;
+  font-weight: bold;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  border-bottom: 1px solid rgba(197,139,255,0.4);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.window-header .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ss-green-ok); box-shadow: 0 0 6px var(--ss-green-ok); }
+.panel-body { padding: 18px 16px; }
+
+/* ---------- identity gate ---------- */
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(224,247,252,0.55); margin-bottom: 6px; }
+.field select, .field input, .field textarea {
+  width: 100%;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(197,139,255,0.4);
+  color: var(--ss-text-light);
+  padding: 10px 12px;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  outline: none;
+}
+.field select:focus, .field input:focus, .field textarea:focus { border-color: var(--ss-purple-accent); box-shadow: 0 0 8px rgba(197,139,255,0.35); }
+.primary-btn {
+  width: 100%;
+  background: linear-gradient(90deg, rgba(197,139,255,0.9), rgba(0,168,255,0.9));
+  color: #04040a;
+  border: none;
+  padding: 12px 0;
+  border-radius: 4px;
+  font-family: inherit;
+  font-weight: bold;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+.primary-btn:hover:not(:disabled) { filter: brightness(1.1); }
+.primary-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.hidden { display: none !important; }
+
+.identity-badge {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; font-size: 0.85rem;
+}
+.identity-badge .name { color: var(--ss-purple-accent); font-weight: bold; }
+.identity-badge .trait { font-size: 0.7rem; color: rgba(224,247,252,0.5); display: block; margin-top: 2px; }
+.switch-link {
+  background: transparent; border: 1px solid var(--ss-border-cyan); color: var(--ss-cyan-primary);
+  padding: 6px 10px; border-radius: 4px; font-family: inherit; font-size: 0.65rem;
+  text-transform: uppercase; cursor: pointer; flex-shrink: 0;
+}
+
+/* ---------- incarnation list ---------- */
+.search-row { padding: 10px 14px 0; }
+.search-row input {
+  width: 100%; background: rgba(0,240,255,0.05); border: 1px solid var(--ss-border-cyan);
+  color: var(--ss-text-light); padding: 9px 12px; border-radius: 4px; font-family: inherit; font-size: 0.85rem;
+}
+.incarnation-list { padding: 10px 14px 14px; display: flex; flex-direction: column; gap: 8px; max-height: 340px; overflow-y: auto; }
+.incarnation-card {
+  border: 1px solid rgba(0,168,255,0.35); border-radius: 5px; padding: 9px 12px;
+  background: rgba(0,240,255,0.03); cursor: pointer; transition: background 0.15s, border-color 0.15s;
+  display: flex; justify-content: space-between; align-items: center; gap: 8px;
+}
+.incarnation-card:hover { background: rgba(0,240,255,0.1); border-color: var(--ss-cyan-primary); }
+.incarnation-card.selected { border-color: var(--ss-purple-accent); background: rgba(197,139,255,0.08); }
+.incarnation-card.pinned { border-color: var(--ss-gold-accent); box-shadow: 0 0 10px rgba(255,215,0,0.25); }
+.ic-name { font-size: 0.88rem; font-weight: bold; display: flex; align-items: center; gap: 6px; }
+.presence-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; display: inline-block; }
+.presence-dot.on { background: var(--ss-green-ok); box-shadow: 0 0 6px var(--ss-green-ok); }
+.presence-dot.off { background: rgba(224,247,252,0.25); }
+.ic-meta { font-size: 0.68rem; color: rgba(224,247,252,0.5); margin-top: 2px; }
+.ic-badges { display: flex; gap: 4px; flex-shrink: 0; }
+.ic-badge {
+  font-size: 0.6rem; padding: 2px 6px; border-radius: 8px; white-space: nowrap;
+  background: rgba(255,215,0,0.12); border: 1px solid rgba(255,215,0,0.4); color: var(--ss-gold-accent);
+}
+.ic-badge.mine { background: linear-gradient(90deg, rgba(255,215,0,0.25), rgba(0,240,255,0.25)); border-color: var(--ss-cyan-primary); color: var(--ss-text-light); }
+.list-empty { font-size: 0.75rem; color: rgba(224,247,252,0.4); font-style: italic; padding: 4px 2px; }
+
+/* ---------- detail panel ---------- */
+.detail-empty { padding: 30px 16px; text-align: center; font-size: 0.85rem; color: rgba(224,247,252,0.4); font-style: italic; }
+.detail-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding: 14px 16px 6px; }
+.detail-name { font-size: 1.05rem; font-weight: bold; color: var(--ss-text-light); }
+.detail-sponsor-line { font-size: 0.72rem; margin-top: 3px; }
+.detail-sponsor-line.none { color: rgba(224,247,252,0.4); }
+.detail-sponsor-line.mine { color: var(--ss-cyan-primary); }
+.detail-sponsor-line.other { color: var(--ss-gold-accent); }
+
+.stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 8px 16px 4px; }
+.mini-tile { text-align: center; padding: 8px 4px; border-radius: 5px; background: rgba(0,240,255,0.04); border: 1px solid rgba(0,168,255,0.3); }
+.mini-tile .mt-icon { font-size: 1rem; }
+.mini-tile .mt-label { font-size: 0.58rem; text-transform: uppercase; color: rgba(224,247,252,0.5); margin-top: 2px; }
+.mini-tile .mt-val { font-size: 0.9rem; font-weight: bold; color: var(--ss-cyan-primary); }
+
+.attr-row-mini { display: flex; justify-content: space-between; font-size: 0.75rem; padding: 4px 16px; color: rgba(224,247,252,0.75); }
+.attr-row-mini span:last-child { color: var(--ss-cyan-primary); font-weight: bold; }
+
+.section-label {
+  padding: 10px 16px 4px; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em;
+  color: rgba(197,139,255,0.75); border-top: 1px dashed rgba(197,139,255,0.25); margin-top: 8px;
+}
+.chip-row { padding: 4px 16px 8px; display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-size: 0.68rem; padding: 4px 9px; border-radius: 12px; background: rgba(0,240,255,0.08); border: 1px solid rgba(0,168,255,0.35); }
+.chip.cleared { border-color: var(--ss-green-ok); color: var(--ss-green-ok); }
+
+.log-scroll { max-height: 220px; overflow-y: auto; padding: 6px 16px 12px; }
+.log-entry { font-size: 0.72rem; padding: 6px 8px; border-left: 2px solid rgba(0,168,255,0.4); margin-bottom: 6px; background: rgba(0,240,255,0.03); border-radius: 2px; }
+.log-entry .le-top { display: flex; justify-content: space-between; color: rgba(224,247,252,0.45); font-size: 0.62rem; text-transform: uppercase; }
+.log-entry .le-choice { color: var(--ss-text-light); margin-top: 2px; }
+.log-entry .le-fail { color: var(--ss-red-error); }
+.log-empty { font-size: 0.72rem; color: rgba(224,247,252,0.4); font-style: italic; padding: 4px 16px 12px; }
+
+.action-block { padding: 12px 16px; border-top: 1px dashed rgba(197,139,255,0.25); }
+.action-block h4 { margin: 0 0 10px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ss-purple-accent); }
+.reward-row { display: flex; gap: 8px; margin-bottom: 10px; }
+.reward-row .field { flex: 1; margin-bottom: 0; }
+.sponsor-btn {
+  width: 100%; background: rgba(255,215,0,0.1); border: 1px solid var(--ss-gold-accent); color: var(--ss-gold-accent);
+  padding: 10px 0; border-radius: 4px; font-family: inherit; font-weight: bold; font-size: 0.8rem;
+  text-transform: uppercase; letter-spacing: 0.05em; cursor: pointer; margin-top: 4px;
+}
+.sponsor-btn:hover { background: rgba(255,215,0,0.2); }
+.sponsor-btn.revoke { border-color: var(--ss-red-error); color: var(--ss-red-error); background: rgba(255,77,94,0.08); }
+.sponsor-btn.revoke:hover { background: rgba(255,77,94,0.18); }
+
+.console-status {
+  margin-top: 10px; font-size: 0.78rem; padding: 9px 12px; border-radius: 4px; border-left: 3px solid transparent; display: none;
+}
+.console-status.show { display: block; }
+.console-status.ok { color: var(--ss-green-ok); background: rgba(55,255,171,0.08); border-left-color: var(--ss-green-ok); }
+.console-status.error { color: var(--ss-red-error); background: rgba(255,77,94,0.08); border-left-color: var(--ss-red-error); }
+
+.console-footer-note {
+  text-align: center; font-size: 0.68rem; color: rgba(224,247,252,0.35); margin-top: 10px; line-height: 1.5;
+}
+.console-footer-note a { color: var(--ss-cyan-primary); }
+
+/* ---------- login gate (Evernight authentication) ---------- */
+:root { --ss-moon-accent: #b9c6ff; --ss-moon-glow: rgba(185, 198, 255, 0.45); }
+#login-gate .window-header {
+  background: linear-gradient(90deg, rgba(185,198,255,0.25), transparent);
+  color: var(--ss-moon-accent);
+  border-bottom: 1px solid rgba(185,198,255,0.4);
+}
+#login-gate.system-window {
+  border-color: var(--ss-moon-accent);
+  box-shadow: 0 0 25px var(--ss-moon-glow), inset 0 0 40px rgba(185,198,255,0.03);
+}
+#login-gate .field select:focus, #login-gate .field input:focus {
+  border-color: var(--ss-moon-accent); box-shadow: 0 0 8px var(--ss-moon-glow);
+}
+#login-gate .primary-btn {
+  background: linear-gradient(90deg, rgba(185,198,255,0.9), rgba(0,168,255,0.9));
+}
+.login-error {
+  font-size: 0.78rem; color: var(--ss-red-error); background: rgba(255,77,94,0.08);
+  border-left: 3px solid var(--ss-red-error); padding: 9px 12px; border-radius: 4px;
+  margin-top: 10px; display: none;
+}
+.login-error.show { display: block; }
+
+/* Evernight Moon identity — visually distinct from the six canon Constellations */
+.identity-badge.evernight { background: linear-gradient(90deg, rgba(185,198,255,0.1), transparent); }
+.identity-badge.evernight .name {
+  background: linear-gradient(90deg, var(--ss-moon-accent), var(--ss-text-light));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.incarnation-card.evernight-pinned { border-color: var(--ss-moon-accent); box-shadow: 0 0 10px var(--ss-moon-glow); }
+.ic-badge.evernight { background: linear-gradient(90deg, rgba(185,198,255,0.3), rgba(0,168,255,0.2)); border-color: var(--ss-moon-accent); color: var(--ss-text-light); }
+.detail-sponsor-line.evernight { color: var(--ss-moon-accent); }
+</style>
+</head>
+<body class="star-stream-theme">
+
+<canvas id="warp-bg"></canvas>
+
+<div class="console-frame">
+  <div class="channel-tag">Star Stream // Constellation Console</div>
+  <h1 class="console-title">Watch. Reward. <span>Sponsor.</span></h1>
+
+  <!-- LOGIN GATE -->
+  <div id="login-gate" class="system-window">
+    <div class="window-header"><span>Evernight Authentication</span><span class="dot"></span></div>
+    <div class="panel-body">
+      <p style="font-size:0.8rem; color:rgba(224,247,252,0.6); margin-top:0;">
+        This console sits behind real Firebase Authentication. Sign in with an admin account that's
+        been added to ORV/Admins in the database — anyone else's login attempt is rejected by the
+        database rules themselves, not just this page.
+      </p>
+      <div class="field">
+        <label for="login-username">Email</label>
+        <input id="login-username" type="email" autocomplete="username" placeholder="Email">
+      </div>
+      <div class="field">
+        <label for="login-password">Password</label>
+        <input id="login-password" type="password" autocomplete="current-password" placeholder="Password">
+      </div>
+      <button class="primary-btn" id="login-btn">Authenticate</button>
+      <div id="login-error" class="login-error">Incorrect email or password, or this account isn't an admin.</div>
+    </div>
+  </div>
+
+  <!-- IDENTITY GATE -->
+  <div id="identity-gate" class="system-window hidden">
+    <div class="window-header"><span>Constellation Sign-On</span><span class="dot"></span></div>
+    <div class="panel-body">
+      <p style="font-size:0.8rem; color:rgba(224,247,252,0.6); margin-top:0;">
+        Choose which Constellation you're watching the Stream as.
+      </p>
+      <div class="field">
+        <label for="constellation-select">Acting As</label>
+        <select id="constellation-select"></select>
+      </div>
+      <button class="primary-btn" id="enter-console-btn">Open Channel</button>
+    </div>
+  </div>
+
+  <!-- CONSOLE (shown after identity chosen) -->
+  <div id="console-root" class="hidden">
+    <div class="system-window">
+      <div class="identity-badge">
+        <div>
+          <span class="name" id="identity-name">—</span>
+          <span class="trait" id="identity-trait">—</span>
+        </div>
+        <button class="switch-link" id="switch-identity-btn">Switch</button>
+        <button class="switch-link" id="admin-logout-btn" style="margin-left:8px;">Sign Out</button>
+      </div>
+    </div>
+
+    <!-- EVERNIGHT-ONLY: Constellation Registry management -->
+    <div id="registry-panel" class="system-window hidden">
+      <div class="window-header"><span>☾ Constellation Registry</span><span class="dot"></span></div>
+      <div class="panel-body">
+        <p style="font-size:0.78rem; color:rgba(224,247,252,0.55); margin-top:0;">
+          Only visible to the Evernight seat. Edit a persona's name/trait and press Save on that row,
+          or add a brand-new persona below. Admin logins themselves (who can sign in, and which
+          persona a non-Evernight admin is tied to) are managed in the Firebase console under
+          ORV/Admins — see SETUP.md.
+        </p>
+        <div id="registry-list"></div>
+
+        <div class="section-label" style="border-top:1px dashed rgba(185,198,255,0.3); padding-left:0; margin-top:16px;">Add New Persona</div>
+        <div class="field"><label>Display Name</label><input id="reg-new-name" type="text" placeholder="e.g. Watchful Old Woman"></div>
+        <button class="primary-btn" id="reg-create-btn">Create Persona</button>
+        <div id="registry-status" class="console-status"></div>
+      </div>
+    </div>
+
+    <div class="system-window">
+      <div class="window-header">
+        <span>Incarnations</span>
+        <span id="online-count" style="font-size:0.68rem; text-transform:none; letter-spacing:0; color:var(--ss-green-ok);"></span>
+      </div>
+      <div class="search-row"><input id="search-input" type="text" placeholder="Search by name..."></div>
+      <div id="incarnation-list" class="incarnation-list"></div>
+    </div>
+
+    <div id="detail-panel" class="system-window">
+      <div id="detail-empty" class="detail-empty">Select an Incarnation above to view their file.</div>
+      <div id="detail-body" class="hidden">
+        <div class="detail-header">
+          <div>
+            <div class="detail-name" id="d-name">—</div>
+            <div class="detail-sponsor-line" id="d-sponsor-line"></div>
+          </div>
+        </div>
+
+        <div class="stat-grid">
+          <div class="mini-tile"><div class="mt-icon">🪙</div><div class="mt-val" id="d-coins">0</div><div class="mt-label">Coins</div></div>
+          <div class="mini-tile"><div class="mt-icon">✦</div><div class="mt-val" id="d-favor">0</div><div class="mt-label">Favor</div></div>
+          <div class="mini-tile"><div class="mt-icon">☯</div><div class="mt-val" id="d-karma">0</div><div class="mt-label">Karma</div></div>
+          <div class="mini-tile"><div class="mt-icon">♡</div><div class="mt-val" id="d-mental">100</div><div class="mt-label">Stability</div></div>
+        </div>
+
+        <div class="section-label">Attributes</div>
+        <div id="d-stats"></div>
+
+        <div class="section-label">Scenarios Cleared</div>
+        <div class="chip-row" id="d-scenarios"></div>
+
+        <div class="section-label">Dokkaebi Bag</div>
+        <div class="chip-row" id="d-inventory"></div>
+
+        <div class="section-label">Choice History</div>
+        <div id="d-choicelog" class="log-scroll"></div>
+
+        <div class="action-block">
+          <h4>📡 Transmit to this Incarnation</h4>
+          <div class="reward-row">
+            <div class="field"><label>Coin Reward</label><input id="reward-coins" type="number" min="0" value="0"></div>
+            <div class="field"><label>Favor Reward</label><input id="reward-favor" type="number" min="0" value="0"></div>
+          </div>
+          <div class="field">
+            <label>Message (appears in their Constellation Stream Log — one-way, they cannot reply)</label>
+            <textarea id="reward-message" rows="2" placeholder="e.g. rewards your composed strategy in Carriage 3707."></textarea>
+          </div>
+          <button class="primary-btn" id="send-transmission-btn">Transmit</button>
+
+          <div id="sponsor-action-area" style="margin-top:14px;"></div>
+
+          <div id="console-status" class="console-status"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="console-footer-note">
+      Reads and writes the same <code>/ORV</code> Firebase tree as the main game.
+      Changes here reflect in the player's app on their next Ledger refresh or message poll (~12s).
+    </div>
+  </div>
+</div>
+
+<!-- Local, gitignored config file — see config.example.js -->
+<script src="config.js"></script>
+
+<script type="module">
+/* =========================================================================
+   PROJECT ORV — CONSTELLATION CONSOLE (constellations.html)
+   =========================================================================
+   Same DB as index.html, now gated by real Firebase Authentication. Entry
+   to this page requires signing in with a Firebase Auth account that is
+   also listed under ORV/Admins in the database (added manually from the
+   Firebase console — see SETUP.md). The "Constellation" persona
+   picker below is unchanged as a role-play/flavor feature: it no longer
+   performs its own password check, since real auth now gates the page
+   itself; "Evernight" permission comes from ORV/Admins/{uid}/evernight
+   instead of a DB-stored password match.
+   ========================================================================= */
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
+import {
+  getAuth, signInWithEmailAndPassword, signOut, onIdTokenChanged
+} from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
+
+if (!window.FIREBASE_CONFIG) {
+  document.body.innerHTML = '<div style="padding:40px;font-family:monospace;color:#ff4d5e;">Missing config.js — copy config.example.js to config.js and fill in your Firebase project values.</div>';
+  throw new Error('Missing window.FIREBASE_CONFIG');
+}
+const firebaseConfig = window.FIREBASE_CONFIG;
+const firebaseApp = initializeApp(firebaseConfig);
+const auth = getAuth(firebaseApp);
+
+let CachedIdToken = null;
+onIdTokenChanged(auth, async (user) => {
+  CachedIdToken = user ? await user.getIdToken() : null;
+});
+
+const DB_ROOT = "https://star-community-orv-dokaebi-default-rtdb.asia-southeast1.firebasedatabase.app/ORV";
+function withAuthQS(path) {
+  const sep = path.includes("?") ? "&" : "?";
+  return CachedIdToken ? `${path}${sep}auth=${encodeURIComponent(CachedIdToken)}` : path;
+}
+async function dbGet(path) {
+  const res = await fetch(withAuthQS(`${DB_ROOT}/${path}.json`));
+  if (!res.ok) throw new Error(`DB read failed (${res.status})`);
+  return res.json();
+}
+async function dbPut(path, value) {
+  const res = await fetch(withAuthQS(`${DB_ROOT}/${path}.json`), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(value)
+  });
+  if (!res.ok) throw new Error(`DB write failed (${res.status})`);
+  return res.json();
+}
+async function dbPush(path, value) {
+  const res = await fetch(withAuthQS(`${DB_ROOT}/${path}.json`), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(value)
+  });
+  if (!res.ok) throw new Error(`DB push failed (${res.status})`);
+  return res.json();
+}
+
+/* Constellation personas are still stored at ORV/Constellations/adminpanel,
+   purely as role-play flavor (name/trait, and which key is currently being
+   "spoken as"). They no longer carry username/password or gate anything —
+   real Firebase Auth + the ORV/Admins allowlist does that now. Seeded once
+   on first boot if the node is empty (requires being signed in as an
+   Evernight admin already, since writes need admin permission). */
+const REGISTRY_PATH = "Constellations/adminpanel";
+const SEED_REGISTRY = {
+  foxyy:     { name: "Foxyy of the Evernight Kitsune", trait: "The Author's own seat behind the Stream — answers to no single virtue, and watches every channel at once." },
+  demon:     { name: "Demon-like Judge of Fire",   trait: "Rewards compassion, self-sacrifice, protecting the weak." },
+  abyssal:   { name: "Abyssal Black Flame Dragon",  trait: "Rewards violence, destruction, dramatic carnage." },
+  secretive: { name: "Secretive Plotter",           trait: "Rewards cunning, indirect solutions, clever loopholes." },
+  sage:      { name: "Great Sage, Equal of Heaven", trait: "Rewards raw physical prowess and brute-force spectacle." },
+  monarch:   { name: "Monarch of the Small Sea",    trait: "Scoffs at submission; rewards defiance." },
+  maritime:  { name: "Maritime War God",            trait: "Rewards flawless group coordination and tactics." }
+};
+let CONSTELLATIONS = {}; // populated from the DB before the login gate is usable
+const STAT_LABELS = { physique: "Physique", strength: "Strength", agility: "Agility", magic: "Magic Power", perception: "Perception" };
+
+async function loadConstellationRegistry() {
+  let registry = await dbGet(REGISTRY_PATH);
+  if (!registry || typeof registry !== "object") {
+    registry = SEED_REGISTRY;
+    await dbPut(REGISTRY_PATH, registry);
+  }
+  CONSTELLATIONS = registry;
+}
+
+/* Non-evernight accounts (username/password blank in the seed above) can't
+   log in until the Evernight account sets real credentials for them from
+   the Constellation Registry panel further down — see renderRegistryPanel(). */
+
+let CurrentConstellationKey = null; // the identity currently being VIEWED (Evernight can switch this)
+let CurrentAccountKey = null;       // the actual LOGGED-IN account (fixed for the session)
+let CurrentIsEvernight = false;     // permission follows CurrentAccountKey, not the viewed identity
+let AllUsers = {};       // { userId: userRecord }
+let SelectedUserId = null;
+const ONLINE_WINDOW_MS = 90 * 1000; // presence heartbeat writes every 30s from index.html
+function isOnline(lastSeen) {
+  return typeof lastSeen === "number" && (Date.now() - lastSeen) < ONLINE_WINDOW_MS;
+}
+function formatLastSeen(lastSeen) {
+  if (typeof lastSeen !== "number") return "never seen";
+  const diffMs = Date.now() - lastSeen;
+  if (diffMs < ONLINE_WINDOW_MS) return "online now";
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+let SearchTerm = "";
+
+/* ---------- warp background (visual parity with index.html) ---------- */
+(function initWarpField() {
+  const canvas = document.getElementById("warp-bg");
+  if (!canvas || !canvas.getContext) return;
+  const ctx = canvas.getContext("2d");
+  let w, h, cx, cy;
+  const STAR_COUNT = 120;
+  const stars = [];
+  function resize() { w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight; cx = w / 2; cy = h / 2; }
+  function makeStar() { return { x: (Math.random() - 0.5) * w, y: (Math.random() - 0.5) * h, z: Math.random() * w }; }
+  function reset() { stars.length = 0; for (let i = 0; i < STAR_COUNT; i++) stars.push(makeStar()); }
+  resize(); reset();
+  window.addEventListener("resize", resize);
+  function tick() {
+    ctx.fillStyle = "rgba(5, 8, 17, 0.35)";
+    ctx.fillRect(0, 0, w, h);
+    for (const s of stars) {
+      s.z -= 1.4;
+      if (s.z <= 1) { s.x = (Math.random() - 0.5) * w; s.y = (Math.random() - 0.5) * h; s.z = w; }
+      const k = 140 / s.z;
+      const px = cx + s.x * k, py = cy + s.y * k;
+      if (px < 0 || px > w || py < 0 || py > h) continue;
+      const size = Math.max(0.4, (1 - s.z / w) * 2.2);
+      const alpha = Math.min(1, (1 - s.z / w) * 1.2);
+      ctx.beginPath();
+      ctx.fillStyle = `rgba(197, 139, 255, ${alpha * 0.7})`;
+      ctx.arc(px, py, size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+})();
+
+/* ---------- identity gate ---------- */
+const constellationSelect = document.getElementById("constellation-select");
+function populateIdentitySelect() {
+  constellationSelect.innerHTML = "";
+  Object.entries(CONSTELLATIONS).forEach(([key, c]) => {
+    const opt = document.createElement("option");
+    opt.value = key;
+    opt.textContent = c.name;
+    constellationSelect.appendChild(opt);
+  });
+}
+
+const els = {
+  loginGate: document.getElementById("login-gate"),
+  loginUsername: document.getElementById("login-username"),
+  loginPassword: document.getElementById("login-password"),
+  loginBtn: document.getElementById("login-btn"),
+  loginError: document.getElementById("login-error"),
+  identityGate: document.getElementById("identity-gate"),
+  consoleRoot: document.getElementById("console-root"),
+  identityName: document.getElementById("identity-name"),
+  identityTrait: document.getElementById("identity-trait"),
+  switchBtn: document.getElementById("switch-identity-btn"),
+  searchInput: document.getElementById("search-input"),
+  incarnationList: document.getElementById("incarnation-list"),
+  onlineCount: document.getElementById("online-count"),
+  detailEmpty: document.getElementById("detail-empty"),
+  detailBody: document.getElementById("detail-body"),
+  dName: document.getElementById("d-name"),
+  dSponsorLine: document.getElementById("d-sponsor-line"),
+  dCoins: document.getElementById("d-coins"),
+  dFavor: document.getElementById("d-favor"),
+  dKarma: document.getElementById("d-karma"),
+  dMental: document.getElementById("d-mental"),
+  dStats: document.getElementById("d-stats"),
+  dScenarios: document.getElementById("d-scenarios"),
+  dInventory: document.getElementById("d-inventory"),
+  dChoiceLog: document.getElementById("d-choicelog"),
+  rewardCoins: document.getElementById("reward-coins"),
+  rewardFavor: document.getElementById("reward-favor"),
+  rewardMessage: document.getElementById("reward-message"),
+  sendBtn: document.getElementById("send-transmission-btn"),
+  sponsorArea: document.getElementById("sponsor-action-area"),
+  status: document.getElementById("console-status"),
+  registryPanel: document.getElementById("registry-panel"),
+  registryList: document.getElementById("registry-list"),
+  regNewName: document.getElementById("reg-new-name"),
+  regCreateBtn: document.getElementById("reg-create-btn"),
+  regStatus: document.getElementById("registry-status"),
+};
+
+function showStatus(kind, msg) {
+  els.status.className = `console-status show ${kind}`;
+  els.status.textContent = msg;
+  setTimeout(() => { els.status.className = "console-status"; }, 4000);
+}
+
+/* ---------- login gate ----------
+   Firebase Auth verifies the email/password; the ORV/Admins/{uid} node
+   (added manually from the Firebase console) verifies this specific
+   account is actually allowed into the console at all — a valid Firebase
+   Auth login on its own isn't enough, since players sign in with Firebase
+   Auth too. See SETUP.md for how to add an admin. */
+let AuthFlowHandled = false; // set the moment a login attempt or restore starts, so the two paths never double-run
+
+async function attemptLogin() {
+  const email = els.loginUsername.value.trim();
+  const password = els.loginPassword.value;
+  els.loginError.classList.remove("show");
+  els.loginBtn.disabled = true;
+  try {
+    AuthFlowHandled = true;
+    const cred = await signInWithEmailAndPassword(auth, email, password);
+    CachedIdToken = await cred.user.getIdToken();
+    await enterAsAdmin(cred.user);
+  } catch (err) {
+    console.error(err);
+    await signOut(auth).catch(() => {});
+    els.loginError.textContent = adminLoginErrorMessage(err);
+    els.loginError.classList.add("show");
+  } finally {
+    els.loginBtn.disabled = false;
+  }
+}
+function adminLoginErrorMessage(err) {
+  if (err && err.code === "NOT_ADMIN") return "That account isn't on the admin list.";
+  if (err && err.code === "NO_PERSONA") return "Signed in, but no Constellation persona is assigned to this account yet — ask Evernight.";
+  switch (err && err.code) {
+    case "auth/wrong-password":
+    case "auth/invalid-credential":
+    case "auth/user-not-found":
+      return "Incorrect email or password.";
+    case "auth/too-many-requests":
+      return "Too many attempts. Wait a moment and try again.";
+    default:
+      return "Incorrect email or password, or this account isn't an admin.";
+  }
+}
+
+/* Shared by both the manual login click and session-restore on reload. */
+async function enterAsAdmin(user) {
+  const adminRecord = await dbGet(`Admins/${user.uid}`);
+  if (!adminRecord) {
+    const err = new Error("Not an admin account");
+    err.code = "NOT_ADMIN";
+    throw err;
+  }
+  CurrentAccountKey = user.uid;
+  CurrentIsEvernight = !!adminRecord.evernight;
+
+  await loadConstellationRegistry();
+  populateIdentitySelect();
+
+  if (CurrentIsEvernight) {
+    // Evernight sees the full roster picker (can act as any identity)
+    // plus the account-management panel.
+    showIdentityGate();
+    const savedKey = localStorage.getItem("orv_admin_constellation");
+    if (savedKey && CONSTELLATIONS[savedKey]) {
+      constellationSelect.value = savedKey;
+      await enterConsole(savedKey);
+    }
+  } else {
+    // Non-Evernight admins are tied to one persona set by Evernight at
+    // ORV/Admins/{uid}/constellationKey — no picker.
+    const key = adminRecord.constellationKey;
+    if (!key || !CONSTELLATIONS[key]) {
+      const err = new Error("No persona assigned");
+      err.code = "NO_PERSONA";
+      throw err;
+    }
+    await enterConsole(key);
+  }
+}
+
+els.loginBtn.addEventListener("click", attemptLogin);
+els.loginPassword.addEventListener("keydown", (e) => { if (e.key === "Enter") attemptLogin(); });
+
+function showIdentityGate() {
+  els.loginGate.classList.add("hidden");
+  els.identityGate.classList.remove("hidden");
+}
+
+document.getElementById("enter-console-btn").addEventListener("click", () => {
+  const key = constellationSelect.value;
+  if (!key) return;
+  localStorage.setItem("orv_admin_constellation", key);
+  enterConsole(key);
+});
+els.switchBtn.addEventListener("click", () => {
+  localStorage.removeItem("orv_admin_constellation");
+  els.consoleRoot.classList.add("hidden");
+  showIdentityGate();
+});
+
+async function enterConsole(key) {
+  CurrentConstellationKey = key;
+  // CurrentIsEvernight reflects the logged-in ACCOUNT's permission, set at
+  // login/reload — it does not change when Evernight switches which
+  // identity they're viewing the console as.
+  const c = CONSTELLATIONS[key];
+  els.identityName.textContent = c.name;
+  els.identityTrait.textContent = c.trait;
+  document.querySelector(".identity-badge").classList.toggle("evernight", !!c.evernight);
+  els.identityGate.classList.add("hidden");
+  els.consoleRoot.classList.remove("hidden");
+  els.registryPanel.classList.toggle("hidden", !CurrentIsEvernight);
+  if (CurrentIsEvernight) renderRegistryPanel();
+  await refreshIncarnationList();
+}
+
+/* ---------- constellation registry (Evernight-only) ---------- */
+function slugify(base) {
+  const clean = (base || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  let slug = clean || "account";
+  let n = 2;
+  while (CONSTELLATIONS[slug]) slug = `${clean || "account"}-${n++}`;
+  return slug;
+}
+
+/* Editing here only changes the persona's name/trait flavor text now.
+   Who's allowed to log in as an admin, and which persona a non-Evernight
+   admin is tied to, is managed in the Firebase console under ORV/Admins
+   — see SETUP.md. */
+function renderRegistryPanel() {
+  els.registryList.innerHTML = "";
+  Object.entries(CONSTELLATIONS).forEach(([key, c]) => {
+    const row = document.createElement("div");
+    row.style.cssText = "border:1px solid rgba(185,198,255,0.25); border-radius:5px; padding:10px 12px; margin-bottom:10px;";
+    row.innerHTML = `
+      <div class="reward-row" style="margin-bottom:8px;">
+        <div class="field" style="margin-bottom:0;"><label>Name</label><input type="text" class="reg-name" value="${c.name.replace(/"/g, "&quot;")}"></div>
+      </div>
+      <div class="reward-row" style="margin-bottom:8px;">
+        <div class="field" style="margin-bottom:0;"><label>Trait</label><input type="text" class="reg-trait" value="${(c.trait || "").replace(/"/g, "&quot;")}"></div>
+      </div>
+      <div style="display:flex; align-items:center; justify-content:flex-end; gap:8px;">
+        <button class="switch-link reg-save-btn" style="border-color:var(--ss-moon-accent); color:var(--ss-moon-accent);">Save</button>
+      </div>
+    `;
+    row.querySelector(".reg-save-btn").addEventListener("click", async () => {
+      const updated = {
+        ...c,
+        name: row.querySelector(".reg-name").value.trim() || c.name,
+        trait: row.querySelector(".reg-trait").value.trim(),
+      };
+      try {
+        await dbPut(`${REGISTRY_PATH}/${key}`, updated);
+        CONSTELLATIONS[key] = updated;
+        populateIdentitySelect();
+        if (key === CurrentConstellationKey) {
+          els.identityName.textContent = updated.name;
+          els.identityTrait.textContent = updated.trait || "";
+        }
+        showRegistryStatus("ok", `Saved ${updated.name}.`);
+      } catch (err) {
+        showRegistryStatus("error", `Failed to save: ${err.message}`);
+      }
+    });
+    els.registryList.appendChild(row);
+  });
+}
+
+function showRegistryStatus(kind, msg) {
+  els.regStatus.className = `console-status show ${kind}`;
+  els.regStatus.textContent = msg;
+  setTimeout(() => { els.regStatus.className = "console-status"; }, 4000);
+}
+
+els.regCreateBtn?.addEventListener("click", async () => {
+  const name = els.regNewName.value.trim();
+  if (!name) {
+    showRegistryStatus("error", "Name is required.");
+    return;
+  }
+  const key = slugify(name);
+  const entry = { name, trait: "" };
+  try {
+    await dbPut(`${REGISTRY_PATH}/${key}`, entry);
+    CONSTELLATIONS[key] = entry;
+    populateIdentitySelect();
+    renderRegistryPanel();
+    els.regNewName.value = "";
+    showRegistryStatus("ok", `Created persona ${name}. Add an admin account for it under ORV/Admins in the Firebase console.`);
+  } catch (err) {
+    showRegistryStatus("error", `Failed to create: ${err.message}`);
+  }
+});
+
+/* ---------- incarnation list ---------- */
+async function refreshIncarnationList() {
+  els.incarnationList.innerHTML = `<div class="list-empty">Loading Incarnations…</div>`;
+  try {
+    const users = await dbGet("Users");
+    AllUsers = {};
+    if (users && typeof users === "object") {
+      for (const [id, record] of Object.entries(users)) {
+        if (!record || !record.Account) continue; // skip the _meta placeholder
+        AllUsers[id] = record;
+      }
+    }
+    renderIncarnationList();
+  } catch (err) {
+    els.incarnationList.innerHTML = `<div class="list-empty">Failed to load: ${err.message}</div>`;
+  }
+}
+
+function renderIncarnationList() {
+  els.incarnationList.innerHTML = "";
+  const term = SearchTerm.trim().toLowerCase();
+  let entries = Object.entries(AllUsers).filter(([id, u]) =>
+    !term || (u.Account.username || "").toLowerCase().includes(term)
+  );
+
+  const onlineTotal = Object.values(AllUsers).filter(u => isOnline(u.Presence?.lastSeen)).length;
+  if (els.onlineCount) {
+    els.onlineCount.textContent = Object.keys(AllUsers).length
+      ? `${onlineTotal} online / ${Object.keys(AllUsers).length} total`
+      : "";
+  }
+
+  // Pin: any Incarnation sponsored by the currently-active Constellation
+  // floats to the very top of the list.
+  entries.sort((a, b) => {
+    const aMine = (a[1].Player?.sponsorConstellation === CurrentConstellationKey) ? 1 : 0;
+    const bMine = (b[1].Player?.sponsorConstellation === CurrentConstellationKey) ? 1 : 0;
+    if (aMine !== bMine) return bMine - aMine;
+    return (a[1].Account.username || "").localeCompare(b[1].Account.username || "");
+  });
+
+  if (entries.length === 0) {
+    els.incarnationList.innerHTML = `<div class="list-empty">No Incarnations match.</div>`;
+    return;
+  }
+
+  entries.forEach(([id, u]) => {
+    const player = u.Player || {};
+    const progress = u.Progress || {};
+    const sponsor = player.sponsorConstellation;
+    const isMine = sponsor === CurrentConstellationKey;
+    const asEvernight = isMine && CurrentConstellationKey === "foxyy";
+    const card = document.createElement("div");
+    card.className = `incarnation-card ${id === SelectedUserId ? "selected" : ""} ${isMine ? "pinned" : ""} ${asEvernight ? "evernight-pinned" : ""}`;
+    const clearedCount = Array.isArray(progress.scenariosCleared) ? progress.scenariosCleared.length : 0;
+    let badges = "";
+    if (asEvernight) badges += `<span class="ic-badge evernight">☾ Your Sponsor</span>`;
+    else if (isMine) badges += `<span class="ic-badge mine">★ Your Sponsor</span>`;
+    else if (sponsor && CONSTELLATIONS[sponsor]) badges += `<span class="ic-badge">Sponsored</span>`;
+    const online = isOnline(u.Presence?.lastSeen);
+    card.innerHTML = `
+      <div>
+        <div class="ic-name">
+          <span class="presence-dot ${online ? "on" : "off"}" title="${formatLastSeen(u.Presence?.lastSeen)}"></span>
+          ${u.Account.username}
+        </div>
+        <div class="ic-meta">${(player.coins || 0).toLocaleString()} 🪙 · ${clearedCount}/4 Scenarios Cleared · ${formatLastSeen(u.Presence?.lastSeen)}</div>
+      </div>
+      <div class="ic-badges">${badges}</div>
+    `;
+    card.addEventListener("click", () => selectIncarnation(id));
+    els.incarnationList.appendChild(card);
+  });
+}
+
+els.searchInput.addEventListener("input", (e) => {
+  SearchTerm = e.target.value;
+  renderIncarnationList();
+});
+
+/* ---------- detail panel ---------- */
+async function selectIncarnation(id) {
+  SelectedUserId = id;
+  renderIncarnationList();
+  els.detailEmpty.classList.add("hidden");
+  els.detailBody.classList.remove("hidden");
+  els.rewardCoins.value = 0;
+  els.rewardFavor.value = 0;
+  els.rewardMessage.value = "";
+  await renderDetail();
+}
+
+async function renderDetail() {
+  // Always pull a fresh copy of just this user so reward/sponsor actions
+  // never clobber something another admin tab or the live player wrote
+  // in between page loads.
+  let record;
+  try {
+    record = await dbGet(`Users/${SelectedUserId}`);
+  } catch (err) {
+    showStatus("error", `Failed to load Incarnation: ${err.message}`);
+    return;
+  }
+  if (!record) return;
+  // Merge rather than replace: the targeted single-record fetch below is
+  // what keeps reward/sponsor actions accurate against the very latest
+  // Player/Progress data, but Presence has shown eventual-consistency lag
+  // on this specific path in testing (fresh fetch briefly missing the
+  // latest heartbeat write). Falling back to the last known-good Presence
+  // from the bulk roster fetch avoids a false "offline" flash — we only
+  // ever use fresher Presence data when it's actually present, never
+  // regress to unknown.
+  const previousPresence = AllUsers[SelectedUserId]?.Presence;
+  if (!record.Presence && previousPresence) record.Presence = previousPresence;
+  AllUsers[SelectedUserId] = record;
+  renderIncarnationList(); // keep the roster card's dot/timestamp in sync too
+
+  const player = record.Player || {};
+  const progress = record.Progress || {};
+  const sponsor = player.sponsorConstellation;
+
+  const online = isOnline(record.Presence?.lastSeen);
+  els.dName.innerHTML = `<span class="presence-dot ${online ? "on" : "off"}"></span>${record.Account.username} <span style="font-size:0.65rem; font-weight:normal; color:rgba(224,247,252,0.5); text-transform:none; letter-spacing:0;">(${formatLastSeen(record.Presence?.lastSeen)})</span>`;
+  if (!sponsor) {
+    els.dSponsorLine.className = "detail-sponsor-line none";
+    els.dSponsorLine.textContent = "No sponsor Constellation.";
+  } else if (sponsor === CurrentConstellationKey) {
+    const isEvernight = CurrentConstellationKey === "foxyy";
+    els.dSponsorLine.className = `detail-sponsor-line ${isEvernight ? "evernight" : "mine"}`;
+    els.dSponsorLine.textContent = `${isEvernight ? "☾" : "★"} Sponsored by you (${CONSTELLATIONS[sponsor]?.name || sponsor}).`;
+  } else {
+    els.dSponsorLine.className = "detail-sponsor-line other";
+    els.dSponsorLine.textContent = `Sponsored by ${CONSTELLATIONS[sponsor]?.name || sponsor}.`;
+  }
+
+  els.dCoins.textContent = (player.coins || 0).toLocaleString();
+  els.dFavor.textContent = player.favor || 0;
+  const k = player.karma || 0;
+  els.dKarma.textContent = `${k > 0 ? "+" : ""}${k}`;
+  els.dMental.textContent = player.mentalStability ?? 100;
+
+  els.dStats.innerHTML = "";
+  const stats = player.stats || {};
+  for (const stat of Object.keys(STAT_LABELS)) {
+    const row = document.createElement("div");
+    row.className = "attr-row-mini";
+    row.innerHTML = `<span>${STAT_LABELS[stat]}</span><span>Lv. ${stats[stat] || 1}</span>`;
+    els.dStats.appendChild(row);
+  }
+
+  els.dScenarios.innerHTML = "";
+  const cleared = Array.isArray(progress.scenariosCleared) ? progress.scenariosCleared : [];
+  if (cleared.length === 0) {
+    els.dScenarios.innerHTML = `<span class="chip">None cleared yet</span>`;
+  } else {
+    cleared.forEach(sid => {
+      const chip = document.createElement("span");
+      chip.className = "chip cleared";
+      chip.textContent = sid.replace("main_scenario_", "Scenario ");
+      els.dScenarios.appendChild(chip);
+    });
+  }
+
+  els.dInventory.innerHTML = "";
+  const inv = Array.isArray(player.inventory) ? player.inventory : [];
+  if (inv.length === 0) {
+    els.dInventory.innerHTML = `<span class="chip">Bag is empty</span>`;
+  } else {
+    inv.forEach(name => {
+      const chip = document.createElement("span");
+      chip.className = "chip";
+      chip.textContent = name;
+      els.dInventory.appendChild(chip);
+    });
+  }
+
+  await renderChoiceLog(SelectedUserId);
+  renderSponsorAction(sponsor);
+}
+
+async function renderChoiceLog(userId) {
+  els.dChoiceLog.innerHTML = `<div class="log-empty">Loading…</div>`;
+  try {
+    const log = await dbGet(`Users/${userId}/ChoiceLog`);
+    if (!log || typeof log !== "object") {
+      els.dChoiceLog.innerHTML = `<div class="log-empty">No choices logged yet.</div>`;
+      return;
+    }
+    const entries = Object.values(log).sort((a, b) => (b.ts || 0) - (a.ts || 0));
+    els.dChoiceLog.innerHTML = "";
+    entries.forEach(entry => {
+      const div = document.createElement("div");
+      div.className = "log-entry";
+      const time = entry.ts ? new Date(entry.ts).toLocaleString() : "";
+      const failTag = entry.requirementMet === false ? ` <span class="le-fail">(requirement not met)</span>` : "";
+      div.innerHTML = `
+        <div class="le-top"><span>${entry.scenarioTitle || entry.scenarioId || "Scenario"}</span><span>${time}</span></div>
+        <div class="le-choice">${entry.choiceLabel || "—"}${failTag}</div>
+      `;
+      els.dChoiceLog.appendChild(div);
+    });
+  } catch (err) {
+    els.dChoiceLog.innerHTML = `<div class="log-empty">Failed to load choice history: ${err.message}</div>`;
+  }
+}
+
+function renderSponsorAction(sponsor) {
+  els.sponsorArea.innerHTML = "";
+  const btn = document.createElement("button");
+  if (sponsor === CurrentConstellationKey) {
+    btn.className = "sponsor-btn revoke";
+    btn.textContent = "✕ Revoke Sponsorship";
+    btn.addEventListener("click", () => setSponsor(null));
+  } else {
+    btn.className = "sponsor-btn";
+    btn.textContent = "★ Sponsor This Incarnation";
+    btn.addEventListener("click", () => setSponsor(CurrentConstellationKey));
+  }
+  els.sponsorArea.appendChild(btn);
+}
+
+/* Each Constellation may sponsor at most one Incarnation, and each
+   Incarnation may have at most one sponsor Constellation — a true 1:1 pin.
+   Setting a new sponsor therefore has to clear this Constellation's OLD
+   sponsee (if any) as well as write the new one. We already hold the full
+   Users list from the sidebar fetch, so we can find that old sponsee
+   locally instead of a second indexed query. */
+async function setSponsor(newSponsorKeyOrNull) {
+  try {
+    if (newSponsorKeyOrNull) {
+      for (const [id, u] of Object.entries(AllUsers)) {
+        if (id !== SelectedUserId && u.Player?.sponsorConstellation === CurrentConstellationKey) {
+          await dbPut(`Users/${id}/Player/sponsorConstellation`, null);
+        }
+      }
+    }
+    await dbPut(`Users/${SelectedUserId}/Player/sponsorConstellation`, newSponsorKeyOrNull);
+
+    const cName = CONSTELLATIONS[CurrentConstellationKey].name;
+    const announceMsg = newSponsorKeyOrNull
+      ? "has chosen you as their Sponsored Incarnation. Your every move on the Stream now carries their name."
+      : "has withdrawn as your sponsor Constellation.";
+    await dbPush(`Users/${SelectedUserId}/ConstellationMessages`, {
+      ts: Date.now(),
+      constellationKey: CurrentConstellationKey,
+      name: cName,
+      message: announceMsg
+    });
+
+    showStatus("ok", newSponsorKeyOrNull ? "Sponsorship granted." : "Sponsorship revoked.");
+    await refreshIncarnationList();
+    await renderDetail();
+  } catch (err) {
+    showStatus("error", `Failed: ${err.message}`);
+  }
+}
+
+/* ---------- reward + message transmission ---------- */
+els.sendBtn.addEventListener("click", async () => {
+  if (!SelectedUserId) return;
+  const coins = Math.max(0, parseInt(els.rewardCoins.value, 10) || 0);
+  const favor = Math.max(0, parseInt(els.rewardFavor.value, 10) || 0);
+  const message = els.rewardMessage.value.trim();
+
+  if (!message && coins === 0 && favor === 0) {
+    showStatus("error", "Add a message, a coin reward, or a favor reward first.");
+    return;
+  }
+
+  els.sendBtn.disabled = true;
+  try {
+    if (coins > 0 || favor > 0) {
+      // Re-fetch just before writing so a reward never clobbers coin/favor
+      // changes the player made in their own session moments ago.
+      const fresh = await dbGet(`Users/${SelectedUserId}/Player`);
+      if (coins > 0) await dbPut(`Users/${SelectedUserId}/Player/coins`, (fresh?.coins || 0) + coins);
+      if (favor > 0) await dbPut(`Users/${SelectedUserId}/Player/favor`, (fresh?.favor || 0) + favor);
+    }
+
+    const cName = CONSTELLATIONS[CurrentConstellationKey].name;
+    await dbPush(`Users/${SelectedUserId}/ConstellationMessages`, {
+      ts: Date.now(),
+      constellationKey: CurrentConstellationKey,
+      name: cName,
+      message: message || "sends a reward without comment.",
+      rewardCoins: coins || null,
+      rewardFavor: favor || null
+    });
+
+    showStatus("ok", "Transmitted to the Incarnation's Constellation Stream Log.");
+    els.rewardCoins.value = 0;
+    els.rewardFavor.value = 0;
+    els.rewardMessage.value = "";
+    await refreshIncarnationList();
+    await renderDetail();
+  } catch (err) {
+    showStatus("error", `Transmission failed: ${err.message}`);
+  } finally {
+    els.sendBtn.disabled = false;
+  }
+});
+
+/* ---------- boot ---------- */
+/* Firebase Auth persists its own session (IndexedDB), so a page reload
+   fires onIdTokenChanged with the already-signed-in user instead of us
+   tracking anything in sessionStorage. AuthFlowHandled stops this from
+   double-running against a login that's already in progress via the
+   button click above. */
+onIdTokenChanged(auth, async (user) => {
+  if (!user || AuthFlowHandled) return;
+  AuthFlowHandled = true;
+  try {
+    CachedIdToken = await user.getIdToken();
+    await enterAsAdmin(user);
+  } catch (err) {
+    console.warn("Could not restore admin session:", err.message);
+    await signOut(auth).catch(() => {});
+  }
+});
+
+/* ---------- sign out ---------- */
+document.getElementById("admin-logout-btn")?.addEventListener("click", async () => {
+  localStorage.removeItem("orv_admin_constellation");
+  await signOut(auth).catch(() => {});
+  AuthFlowHandled = false;
+  els.consoleRoot.classList.add("hidden");
+  els.identityGate.classList.add("hidden");
+  els.loginGate.classList.remove("hidden");
+  els.loginUsername.value = "";
+  els.loginPassword.value = "";
+});
+</script>
+</body>
+</html>
