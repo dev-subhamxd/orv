@@ -19,6 +19,9 @@ jobs:
           window.FIREBASE_CONFIG = ${{ secrets.FIREBASE_CONFIG }};
           EOF
 
+      - name: Remove .gitignore so config.js isn't excluded from deploy
+        run: rm -f .gitignore
+
       - name: Deploy to gh-pages
         uses: peaceiris/actions-gh-pages@v4
         with:
